@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  String searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -14,10 +21,10 @@ class HomePage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
-              _buildBalanceCard(),
               _buildSearchBar(),
               _buildCategories(),
               _buildRecommendations(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -71,77 +78,35 @@ class HomePage extends ConsumerWidget {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBalanceCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Rp. 100,000',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const SizedBox(height: 8),
+          const Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.white, size: 16),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Universitas Esa Unggul, Jakarta',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  '15 Coins',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _buildActionButton(Icons.wallet, 'Bayar'),
-          const SizedBox(width: 8),
-          _buildActionButton(Icons.add, 'Top Up'),
-          const SizedBox(width: 8),
-          _buildActionButton(Icons.more_horiz, 'Lainnya'),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: AppColors.primary, size: 20),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 10)),
-      ],
     );
   }
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
       child: TextField(
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+          });
+        },
         decoration: InputDecoration(
           hintText: 'Search here..',
           prefixIcon: const Icon(Icons.search),
@@ -159,17 +124,17 @@ class HomePage extends ConsumerWidget {
 
   Widget _buildCategories() {
     final categories = [
-      {'name': 'Mie Goreng', 'icon': Icons.ramen_dining},
-      {'name': 'Kopi', 'icon': Icons.coffee},
-      {'name': 'Nasi Goreng', 'icon': Icons.rice_bowl},
-      {'name': 'Dimsum', 'icon': Icons.fastfood},
+      {'name': 'Mie Goreng', 'icon': Icons.ramen_dining, 'color': Colors.amber},
+      {'name': 'Kopi', 'icon': Icons.coffee, 'color': Colors.brown},
+      {'name': 'Nasi Goreng', 'icon': Icons.rice_bowl, 'color': Colors.orange},
+      {'name': 'Dimsum', 'icon': Icons.fastfood, 'color': Colors.deepOrange},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -198,12 +163,12 @@ class HomePage extends ConsumerWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: (category['color'] as Color).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         category['icon'] as IconData,
-                        color: AppColors.primary,
+                        color: category['color'] as Color,
                         size: 32,
                       ),
                     ),
@@ -212,6 +177,8 @@ class HomePage extends ConsumerWidget {
                       category['name'] as String,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -224,34 +191,74 @@ class HomePage extends ConsumerWidget {
   }
 
   Widget _buildRecommendations() {
+    final recommendations = [
+      {
+        'name': 'Mie Goreng',
+        'store': 'Dapur Ibu Aisyah',
+        'price': 'Rp. 15.000',
+        'color': Colors.blue,
+        'icon': Icons.ramen_dining,
+      },
+      {
+        'name': 'Nasi Padang',
+        'store': 'Warung Mak Lis',
+        'price': 'Rp. 20.000',
+        'color': Colors.pink,
+        'icon': Icons.rice_bowl,
+      },
+      {
+        'name': 'Ayam Geprek',
+        'store': 'Warung Mba Yanti',
+        'price': 'Rp. 14.000',
+        'color': Colors.purple,
+        'icon': Icons.fastfood,
+      },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'Rekomendasi untuk kamu',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
+        const SizedBox(height: 12),
         SizedBox(
           height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 3,
+            itemCount: recommendations.length,
             itemBuilder: (context, index) {
-              return _buildFoodCard();
+              final item = recommendations[index];
+              return _buildFoodCard(
+                name: item['name'] as String,
+                store: item['store'] as String,
+                price: item['price'] as String,
+                color: item['color'] as Color,
+                icon: item['icon'] as IconData,
+              );
             },
           ),
         ),
+        const SizedBox(height: 16),
+        _buildRestaurantCard(),
       ],
     );
   }
 
-  Widget _buildFoodCard() {
+  Widget _buildFoodCard({
+    required String name,
+    required String store,
+    required String price,
+    required Color color,
+    required IconData icon,
+  }) {
     return Container(
-      width: 160,
+      width: 140,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -268,45 +275,159 @@ class HomePage extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 100,
+            height: 90,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: color.withOpacity(0.2),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
             ),
-            child: const Center(
-              child: Icon(Icons.fastfood, size: 48, color: AppColors.primary),
+            child: Center(
+              child: Icon(icon, size: 40, color: color),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.all(12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        store,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        price,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('$name ditambahkan ke keranjang')),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.add_circle,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRestaurantCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: const Center(
+              child: Icon(Icons.image, size: 48, color: Colors.grey),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Mie Goreng',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                const Text(
+                  'Warung Pakde',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
-                Text(
-                  'Kantin Rp Ayam',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                const Text(
+                  'Telur dadar • Rendang • Jenggal • Nasi Padang',
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Rp. 15.000',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.secondary,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.star, size: 14, color: Colors.amber),
+                          SizedBox(width: 4),
+                          Text('4.9', style: TextStyle(fontSize: 11)),
+                        ],
                       ),
                     ),
-                    Icon(Icons.add_circle, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '6 min',
+                        style:
+                            TextStyle(fontSize: 11, color: AppColors.primary),
+                      ),
+                    ),
                   ],
                 ),
               ],
