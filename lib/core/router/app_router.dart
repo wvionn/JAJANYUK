@@ -8,12 +8,12 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/campus_selection_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
-import '../../features/qris/presentation/pages/qris_page.dart';
 import '../../features/notification/presentation/pages/notification_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/admin/presentation/pages/admin_dashboard_page.dart';
 import '../../features/admin/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_dashboard_page.dart';
+import '../widgets/main_shell.dart';
 import 'route_names.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -44,31 +44,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterPage(),
       ),
 
-      // Buyer Routes
-      GoRoute(
-        path: RouteNames.home,
-        name: RouteNames.home,
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: RouteNames.cart,
-        name: RouteNames.cart,
-        builder: (context, state) => const CartPage(),
-      ),
-      GoRoute(
-        path: RouteNames.qris,
-        name: RouteNames.qris,
-        builder: (context, state) => const QrisPage(),
-      ),
-      GoRoute(
-        path: RouteNames.notification,
-        name: RouteNames.notification,
-        builder: (context, state) => const NotificationPage(),
-      ),
-      GoRoute(
-        path: RouteNames.profile,
-        name: RouteNames.profile,
-        builder: (context, state) => const ProfilePage(),
+      // Buyer Routes with Shell Navigation (COD only)
+      ShellRoute(
+        builder: (context, state, child) => MainShell(child: child),
+        routes: [
+          GoRoute(
+            path: RouteNames.home,
+            name: RouteNames.home,
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: RouteNames.cart,
+            name: RouteNames.cart,
+            builder: (context, state) => const CartPage(),
+          ),
+          GoRoute(
+            path: RouteNames.notification,
+            name: RouteNames.notification,
+            builder: (context, state) => const NotificationPage(),
+          ),
+          GoRoute(
+            path: RouteNames.profile,
+            name: RouteNames.profile,
+            builder: (context, state) => const ProfilePage(),
+          ),
+        ],
       ),
 
       // Admin Routes

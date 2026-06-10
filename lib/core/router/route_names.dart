@@ -7,10 +7,9 @@ class RouteNames {
   static const String login = '/login';
   static const String register = '/register';
 
-  // Buyer
+  // Buyer (COD only)
   static const String home = '/home';
   static const String cart = '/cart';
-  static const String qris = '/qris';
   static const String notification = '/notification';
   static const String profile = '/profile';
   static const String productDetail = '/product/:id';
