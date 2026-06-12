@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -20,6 +21,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,10 +32,127 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
-  void _handleRegister() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: Implement register logic
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        data: {
+          'full_name': _nameController.text.trim(),
+          'role': 'buyer',
+        },
+      );
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSuccessDialog();
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_mapAuthError(e.message)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
+  }
+
+  String _mapAuthError(String message) {
+    if (message.contains('already registered')) {
+      return 'Email ini sudah terdaftar. Silakan login.';
+    }
+    if (message.contains('invalid email')) {
+      return 'Format email tidak valid.';
+    }
+    if (message.contains('weak password')) {
+      return 'Password terlalu lemah. Gunakan kombinasi huruf dan angka.';
+    }
+    return 'Pendaftaran gagal: $message';
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.mark_email_read_outlined,
+                size: 56,
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Pendaftaran Berhasil!',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Link konfirmasi telah dikirim ke:\n${_emailController.text.trim()}\n\nSilakan cek email kamu untuk mengaktifkan akun.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go(RouteNames.login);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Ke Halaman Login',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -53,59 +172,95 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             child: Form(
               key: _formKey,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  // Back button
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Header
                   const Text(
-                    'Register',
+                    'Buat Akun',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Daftar dengan email kampus kamu',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 32),
+
+                  // Nama lengkap
                   CustomTextField(
-                    label: 'Nama Pengguna',
-                    hint: 'Masukan Nama Pengguna',
+                    label: 'Nama Lengkap',
+                    hint: 'Masukkan nama lengkap',
                     controller: _nameController,
-                    prefixIcon: Icons.person,
-                    validator: (value) => Validators.required(value, 'Name'),
+                    prefixIcon: Icons.person_outline,
+                    validator: (value) => Validators.required(value, 'Nama'),
                   ),
                   const SizedBox(height: 16),
+
+                  // Email kampus
                   CustomTextField(
-                    label: 'Email',
-                    hint: 'Masukan Email Kampus',
+                    label: 'Email Kampus',
+                    hint: 'contoh@student.univ.ac.id',
                     controller: _emailController,
-                    prefixIcon: Icons.email,
+                    prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
+                    validator: Validators.campusEmail,
+                  ),
+                  const SizedBox(height: 6),
+                  // Info domain kampus
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Hanya email @student.univ.ac.id',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
+
+                  // Password
                   CustomTextField(
                     label: 'Password',
-                    hint: 'Masukan Password',
+                    hint: 'Minimal 8 karakter',
                     controller: _passwordController,
-                    prefixIcon: Icons.lock,
+                    prefixIcon: Icons.lock_outline,
                     obscureText: true,
                     validator: Validators.password,
                   ),
-                  const SizedBox(height: 8),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Password harus berisi min 8 huruf*',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 16),
+
+                  // Konfirmasi Password
                   CustomTextField(
                     label: 'Konfirmasi Password',
-                    hint: 'Masukan Password',
+                    hint: 'Ulangi password',
                     controller: _confirmPasswordController,
-                    prefixIcon: Icons.lock,
+                    prefixIcon: Icons.lock_outline,
                     obscureText: true,
                     validator: (value) => Validators.confirmPassword(
                       value,
@@ -113,69 +268,41 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  CustomButton(text: 'Register', onPressed: _handleRegister),
-                  const SizedBox(height: 24),
-                  const Row(
+
+                  // Tombol daftar
+                  CustomButton(
+                    text: 'Daftar',
+                    onPressed: _handleRegister,
+                    isLoading: _isLoading,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Sudah punya akun
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('or continue with'),
+                      const Text(
+                        'Sudah punya akun? ',
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildSocialButton(Icons.g_mobiledata, () {}),
-                      const SizedBox(width: 16),
-                      _buildSocialButton(Icons.apple, () {}),
-                      const SizedBox(width: 16),
-                      _buildSocialButton(Icons.facebook, () {}),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Already have an account? '),
                       TextButton(
-                        onPressed: () {
-                          context.push(RouteNames.login);
-                        },
-                        child: const Text('Login'),
+                        onPressed: () => context.go(RouteNames.login),
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(icon, size: 32),
       ),
     );
   }
