@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/campus_selection_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
@@ -42,6 +43,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.register,
         name: RouteNames.register,
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: RouteNames.forgotPassword,
+        name: RouteNames.forgotPassword,
+        builder: (context, state) => const ForgotPasswordPage(),
       ),
 
       // Buyer Routes with Shell Navigation (COD only)

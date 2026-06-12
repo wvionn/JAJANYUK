@@ -6,6 +6,7 @@ class RouteNames {
   // Auth
   static const String login = '/login';
   static const String register = '/register';
+  static const String forgotPassword = '/forgot-password';
 
   // Buyer (COD only)
   static const String home = '/home';
