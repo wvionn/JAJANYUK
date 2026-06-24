@@ -12,8 +12,15 @@ import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/notification/presentation/pages/notification_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/admin/presentation/pages/admin_dashboard_page.dart';
+import '../../features/admin/presentation/pages/admin_users_page.dart';
+import '../../features/admin/presentation/pages/admin_sellers_page.dart';
+import '../../features/admin/presentation/pages/admin_transactions_page.dart';
+import '../../features/admin/presentation/pages/admin_campuses_page.dart';
 import '../../features/admin/presentation/pages/seller_registration_page.dart';
 import '../../features/seller/presentation/pages/seller_dashboard_page.dart';
+import '../../features/seller/presentation/pages/seller_menu_page.dart';
+import '../../features/seller/presentation/pages/seller_orders_page.dart';
+import '../../features/seller/presentation/pages/seller_chat_page.dart';
 import '../widgets/main_shell.dart';
 import 'route_names.dart';
 
@@ -84,9 +91,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminDashboardPage(),
       ),
       GoRoute(
+        path: RouteNames.adminUsers,
+        name: RouteNames.adminUsers,
+        builder: (context, state) => const AdminUsersPage(),
+      ),
+      GoRoute(
+        path: RouteNames.adminSellers,
+        name: RouteNames.adminSellers,
+        builder: (context, state) => const AdminSellersPage(),
+      ),
+      GoRoute(
         path: RouteNames.sellerRegistration,
         name: RouteNames.sellerRegistration,
         builder: (context, state) => const SellerRegistrationPage(),
+      ),
+      GoRoute(
+        path: RouteNames.adminTransactions,
+        name: RouteNames.adminTransactions,
+        builder: (context, state) => const AdminTransactionsPage(),
+      ),
+      GoRoute(
+        path: RouteNames.adminCampuses,
+        name: RouteNames.adminCampuses,
+        builder: (context, state) => const AdminCampusesPage(),
       ),
 
       // Seller Routes
@@ -94,6 +121,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.sellerDashboard,
         name: RouteNames.sellerDashboard,
         builder: (context, state) => const SellerDashboardPage(),
+      ),
+      GoRoute(
+        path: RouteNames.sellerMenu,
+        name: RouteNames.sellerMenu,
+        builder: (context, state) => const SellerMenuPage(),
+      ),
+      GoRoute(
+        path: RouteNames.sellerOrders,
+        name: RouteNames.sellerOrders,
+        builder: (context, state) => const SellerOrdersPage(),
+      ),
+      GoRoute(
+        path: RouteNames.sellerChat,
+        name: RouteNames.sellerChat,
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId']!;
+          return SellerChatPage(orderId: orderId);
+        },
       ),
     ],
     errorBuilder: (context, state) =>

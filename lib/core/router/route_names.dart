@@ -19,13 +19,18 @@ class RouteNames {
 
   // Admin
   static const String adminDashboard = '/admin';
-  static const String sellerRegistration = '/admin/register-seller';
+  static const String adminUsers = '/admin/users';
+  static const String adminSellers = '/admin/sellers';
+  static const String sellerRegistration = '/admin/sellers/register';
+  static const String adminTransactions = '/admin/transactions';
+  static const String adminCampuses = '/admin/campuses';
   static const String sellerManagement = '/admin/sellers';
   static const String categoryManagement = '/admin/categories';
 
   // Seller
   static const String sellerDashboard = '/seller';
-  static const String sellerProducts = '/seller/products';
+  static const String sellerMenu = '/seller/menu';
   static const String sellerOrders = '/seller/orders';
+  static const String sellerChat = '/seller/orders/:orderId/chat';
   static const String sellerProfile = '/seller/profile';
 }
