@@ -1,6 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+
+final campusNameProvider = FutureProvider.family<String, String>((ref, campusId) async {
+  try {
+    final response = await Supabase.instance.client
+        .from('campuses')
+        .select('name')
+        .eq('id', campusId)
+        .maybeSingle();
+    return response?['name'] as String? ?? 'Universitas Esa Unggul, Jakarta';
+  } catch (_) {
+    return 'Universitas Esa Unggul, Jakarta';
+  }
+});
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -20,7 +35,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
+              _buildHeader(ref),
               _buildSearchBar(),
               _buildCategories(),
               _buildRecommendations(),
@@ -32,7 +47,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final user = authState.valueOrNull;
+    final userName = user?.fullName ?? 'Pengguna';
+    
+    String campusName = 'Universitas Esa Unggul, Jakarta';
+    if (user?.campusId != null) {
+      final campusAsync = ref.watch(campusNameProvider(user!.campusId!));
+      campusName = campusAsync.valueOrNull ?? 'Memuat lokasi...';
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -53,17 +78,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                 child: Icon(Icons.person, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Good Morning',
+                    const Text(
+                      'Selamat Pagi',
                       style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     Text(
-                      'Khairunnisa dewi',
-                      style: TextStyle(
+                      userName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -79,14 +104,14 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.location_on, color: Colors.white, size: 16),
-              SizedBox(width: 4),
+              const Icon(Icons.location_on, color: Colors.white, size: 16),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Universitas Esa Unggul, Jakarta',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  campusName,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/utils/validators.dart';
+import '../providers/auth_provider.dart';
+import '../../../onboarding/presentation/pages/campus_selection_page.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -37,41 +38,33 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     setState(() => _isLoading = true);
 
-    try {
-      await Supabase.instance.client.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        data: {
-          'full_name': _nameController.text.trim(),
-          'role': 'buyer',
-        },
-      );
+    final campusId = ref.read(selectedCampusIdProvider);
+    final registerResult = await ref.read(authStateProvider.notifier).register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          fullName: _nameController.text.trim(),
+          campusId: campusId,
+        );
 
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showSuccessDialog();
-      }
-    } on AuthException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_mapAuthError(e.message)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Terjadi kesalahan: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+    registerResult.fold(
+      (failure) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_mapAuthError(failure.message)),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      (user) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showSuccessDialog();
+        }
+      },
+    );
   }
 
   String _mapAuthError(String message) {

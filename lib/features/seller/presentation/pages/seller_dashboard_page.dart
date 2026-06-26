@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/seller_provider.dart';
 
 class SellerDashboardPage extends ConsumerWidget {
@@ -11,7 +11,10 @@ class SellerDashboardPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = Supabase.instance.client.auth.currentUser;
+    final authState = ref.watch(authStateProvider);
+    final currentUser = authState.valueOrNull;
+    final displayName = currentUser?.fullName ?? currentUser?.email ?? 'Seller';
+    
     final ordersState = ref.watch(ordersNotifierProvider);
     final menuState = ref.watch(menuNotifierProvider);
 
@@ -20,7 +23,7 @@ class SellerDashboardPage extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context, user?.email ?? 'Seller'),
+            _buildHeader(context, displayName, ref),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -59,7 +62,7 @@ class SellerDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, String email) {
+  Widget _buildHeader(BuildContext context, String displayName, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: const BoxDecoration(
@@ -92,7 +95,7 @@ class SellerDashboardPage extends ConsumerWidget {
                 const Text('Selamat Datang',
                     style: TextStyle(color: Colors.white70, fontSize: 12)),
                 Text(
-                  email,
+                  displayName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -107,7 +110,7 @@ class SellerDashboardPage extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => _showLogoutDialog(context),
+            onPressed: () => _showLogoutDialog(context, ref),
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             tooltip: 'Logout',
           ),
@@ -280,7 +283,7 @@ class SellerDashboardPage extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -293,7 +296,7 @@ class SellerDashboardPage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await Supabase.instance.client.auth.signOut();
+              await ref.read(authStateProvider.notifier).logout();
               if (context.mounted) context.go(RouteNames.login);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),

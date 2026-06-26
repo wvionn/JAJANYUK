@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../admin/domain/entities/campus_entity.dart';
+import '../../../admin/data/models/campus_model.dart';
+
+final onboardingCampusesProvider = FutureProvider<List<CampusEntity>>((ref) async {
+  final client = Supabase.instance.client;
+  final response = await client
+      .from('campuses')
+      .select()
+      .order('name');
+  
+  return (response as List)
+      .map((json) => CampusModel.fromJson(json))
+      .where((campus) => campus.isActive)
+      .toList();
+});
+
+final selectedCampusIdProvider = StateProvider<String?>((ref) => null);
 
 class CampusSelectionPage extends ConsumerStatefulWidget {
   const CampusSelectionPage({super.key});
@@ -16,17 +34,10 @@ class CampusSelectionPage extends ConsumerStatefulWidget {
 class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
   String? _selectedCampus;
 
-  final List<CampusData> _campuses = [
-    CampusData(
-      id: '1',
-      name: 'Universitas Esa Unggul, Jakarta',
-      imageUrl: 'assets/images/campus1.jpg',
-    ),
-    // Add more campuses as needed
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final campusesAsync = ref.watch(onboardingCampusesProvider);
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -60,11 +71,45 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
                 ),
                 const SizedBox(height: 32),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _campuses.length,
-                    itemBuilder: (context, index) {
-                      final campus = _campuses[index];
-                      return _buildCampusCard(campus);
+                  child: campusesAsync.when(
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    error: (err, _) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Gagal memuat daftar kampus: $err',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () => ref.refresh(onboardingCampusesProvider),
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    data: (campuses) {
+                      if (campuses.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'Tidak ada kampus aktif ditemukan',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: campuses.length,
+                        itemBuilder: (context, index) {
+                          final campus = campuses[index];
+                          return _buildCampusCard(campus);
+                        },
+                      );
                     },
                   ),
                 ),
@@ -73,7 +118,9 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
                   text: 'Next',
                   onPressed: _selectedCampus != null
                       ? () {
-                          // Save selected campus
+                          // Simpan kampus yang dipilih ke state provider
+                          ref.read(selectedCampusIdProvider.notifier).state =
+                              _selectedCampus;
                           context.go(RouteNames.login);
                         }
                       : null,
@@ -86,7 +133,7 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
     );
   }
 
-  Widget _buildCampusCard(CampusData campus) {
+  Widget _buildCampusCard(CampusEntity campus) {
     final isSelected = _selectedCampus == campus.id;
 
     return GestureDetector(
@@ -107,7 +154,7 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -119,7 +166,7 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -130,12 +177,27 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                campus.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    campus.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (campus.city != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      campus.city!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (isSelected)
@@ -149,12 +211,4 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
       ),
     );
   }
-}
-
-class CampusData {
-  final String id;
-  final String name;
-  final String imageUrl;
-
-  CampusData({required this.id, required this.name, required this.imageUrl});
 }

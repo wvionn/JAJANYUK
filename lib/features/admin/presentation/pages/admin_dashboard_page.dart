@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import '../widgets/admin_stat_card.dart';
 
@@ -19,7 +19,7 @@ class AdminDashboardPage extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _buildHeader(context, ref),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => ref.refresh(platformStatsProvider.future),
@@ -105,9 +105,10 @@ class AdminDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-    final email = user?.email ?? 'Admin';
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final user = authState.valueOrNull;
+    final displayName = user?.fullName ?? user?.email ?? 'Admin';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -139,7 +140,7 @@ class AdminDashboardPage extends ConsumerWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 Text(
-                  email,
+                  displayName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -156,7 +157,7 @@ class AdminDashboardPage extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => _showLogoutDialog(context),
+            onPressed: () => _showLogoutDialog(context, ref),
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             tooltip: 'Logout',
           ),
@@ -326,7 +327,7 @@ class AdminDashboardPage extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -341,7 +342,7 @@ class AdminDashboardPage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await Supabase.instance.client.auth.signOut();
+              await ref.read(authStateProvider.notifier).logout();
               if (context.mounted) context.go(RouteNames.login);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),

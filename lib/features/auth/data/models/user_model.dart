@@ -18,12 +18,14 @@ class UserModel extends UserEntity {
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
-      fullName: json['full_name'] as String?,
-      phoneNumber: json['phone_number'] as String?,
-      role: UserRole.fromString(json['role'] as String),
+      fullName: (json['full_name'] ?? json['name']) as String?,
+      phoneNumber: (json['phone_number'] ?? json['phone']) as String?,
+      role: UserRole.fromString(json['role'] as String? ?? 'buyer'),
       campusId: json['campus_id'] as String?,
       profileImageUrl: json['profile_image_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,

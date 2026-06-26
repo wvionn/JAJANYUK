@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/router/route_names.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final user = authState.valueOrNull;
+    final userName = user?.fullName ?? 'Pengguna';
+    final userEmail = user?.email ?? 'Tidak ada email';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profil'),
@@ -30,9 +39,9 @@ class ProfilePage extends StatelessWidget {
                         Icon(Icons.person, size: 50, color: AppColors.primary),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Khairunnisa dewi',
-                    style: TextStyle(
+                  Text(
+                    userName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -40,8 +49,8 @@ class ProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'khairunnisa@example.com',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    userEmail,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -79,8 +88,37 @@ class ProfilePage extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement logout
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Keluar'),
+                      content: const Text('Apakah Anda yakin ingin keluar?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Batal'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text(
+                            'Keluar',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await ref.read(authStateProvider.notifier).logout();
+                    if (context.mounted) {
+                      context.go(RouteNames.login);
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,

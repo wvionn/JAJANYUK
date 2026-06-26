@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/constants/enums.dart';
+import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -33,33 +34,48 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     setState(() => _isLoading = true);
 
-    try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+    final loginResult = await ref.read(authStateProvider.notifier).login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login berhasil!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        context.go(RouteNames.home);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login gagal: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+    loginResult.fold(
+      (failure) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login gagal: ${failure.message}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      },
+      (user) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login berhasil!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+
+          // Redirect berdasarkan role
+          switch (user.role) {
+            case UserRole.admin:
+              context.go(RouteNames.adminDashboard);
+              break;
+            case UserRole.seller:
+              context.go(RouteNames.sellerDashboard);
+              break;
+            case UserRole.buyer:
+              context.go(RouteNames.home);
+              break;
+          }
+        }
+      },
+    );
   }
 
   @override
@@ -80,7 +96,36 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               key: _formKey,
               child: Column(
                 children: [
-                  const SizedBox(height: 40),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: InkWell(
+                      onTap: () => context.go(RouteNames.campusSelection),
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_ios_new,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Pilih Kampus',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Illustration placeholder
                   Container(
                     height: 200,

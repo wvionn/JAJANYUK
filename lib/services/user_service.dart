@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 class UserService {
@@ -29,10 +28,10 @@ class UserService {
     return role == 'seller';
   }
 
-  /// Check if user is customer
-  Future<bool> isCustomer(String userId) async {
+  /// Check if user is buyer
+  Future<bool> isBuyer(String userId) async {
     final role = await getUserRole(userId);
-    return role == 'customer';
+    return role == 'buyer';
   }
 
   /// Get current user role
@@ -133,12 +132,12 @@ class UserService {
     }
   }
 
-  /// Get all customers
-  Future<List<Map<String, dynamic>>> getAllCustomers() async {
+  /// Get all buyers
+  Future<List<Map<String, dynamic>>> getAllBuyers() async {
     try {
-      return await _supabase.queryData('users', 'role', 'customer');
+      return await _supabase.queryData('users', 'role', 'buyer');
     } catch (e) {
-      throw Exception('Failed to get customers: $e');
+      throw Exception('Failed to get buyers: $e');
     }
   }
 
