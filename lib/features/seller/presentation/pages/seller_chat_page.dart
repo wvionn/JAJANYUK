@@ -238,15 +238,15 @@ class _SellerChatPageState extends ConsumerState<SellerChatPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: _statusColor(order.status).withValues(alpha: 0.12),
+              color: _statusColor(order.orderStatus).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              _statusLabel(order.status),
+              _statusLabel(order.orderStatus),
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: _statusColor(order.status),
+                color: _statusColor(order.orderStatus),
               ),
             ),
           ),
@@ -470,7 +470,7 @@ class _OrderStatusChip extends StatelessWidget {
   const _OrderStatusChip({required this.order});
 
   Color _color() {
-    switch (order.status) {
+    switch (order.orderStatus) {
       case 'pending':
         return AppColors.warning;
       case 'processing':
@@ -498,7 +498,7 @@ class _OrderStatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        labels[order.status] ?? order.status,
+        labels[order.orderStatus] ?? order.orderStatus,
         style: TextStyle(
           color: _color(),
           fontSize: 11,
