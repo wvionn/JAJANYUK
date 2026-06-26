@@ -281,11 +281,11 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         pendingRes = await supabaseClient
             .from('orders')
             .select('id')
-            .eq('status', 'pending');
+            .eq('order_status', 'pending');
         completedRes = await supabaseClient
             .from('orders')
             .select('id, total_amount')
-            .eq('status', 'completed');
+            .eq('order_status', 'completed');
         totalRevenue = completedRes.fold(
           0.0,
           (sum, o) => sum + ((o['total_amount'] as num?)?.toDouble() ?? 0.0),
@@ -317,7 +317,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     try {
       var query = supabaseClient.from('orders').select(
         '''
-        id, total_amount, status, payment_method, created_at,
+        id, total_amount, order_status, payment_method, created_at,
         buyer:users!orders_buyer_id_fkey(full_name, email),
         seller:users!orders_seller_id_fkey(full_name),
         order_items(product_name, quantity, price)
@@ -325,7 +325,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       );
 
       if (status != null && status != 'all') {
-        query = query.eq('status', status);
+        query = query.eq('order_status', status);
       }
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());

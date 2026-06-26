@@ -4,9 +4,12 @@ import '../../data/datasources/seller_remote_datasource.dart';
 import '../../data/repositories/seller_repository_impl.dart';
 import '../../domain/entities/menu_item_entity.dart';
 import '../../domain/entities/order_entity.dart';
+import '../../domain/entities/vendor_entity.dart';
+import '../../domain/entities/seller_profile_entity.dart';
+import '../../domain/entities/transaction_entity.dart';
 import '../../domain/repositories/seller_repository.dart';
 
-// ── DI ──
+// ── Dependency Injection ──
 
 final sellerRemoteDataSourceProvider = Provider<SellerRemoteDataSource>((ref) {
   return SellerRemoteDataSourceImpl(
@@ -20,10 +23,83 @@ final sellerRepositoryProvider = Provider<SellerRepository>((ref) {
   );
 });
 
-// ── Current Seller ID ──
+// ── Current Seller ID & Profile ──
 
 final currentSellerIdProvider = Provider<String?>((ref) {
   return Supabase.instance.client.auth.currentUser?.id;
+});
+
+final sellerProfileFutureProvider = FutureProvider<SellerProfileEntity?>((ref) async {
+  final userId = ref.watch(currentSellerIdProvider);
+  if (userId == null) return null;
+  final repository = ref.watch(sellerRepositoryProvider);
+  final result = await repository.getSellerProfile(userId);
+  return result.fold(
+    (failure) => throw failure.message,
+    (profile) => profile,
+  );
+});
+
+final currentVendorIdProvider = Provider<String?>((ref) {
+  return ref.watch(sellerProfileFutureProvider).valueOrNull?.vendorId;
+});
+
+// ── Vendor Profile Notifier ──
+
+class VendorProfileNotifier extends StateNotifier<AsyncValue<VendorEntity?>> {
+  final SellerRepository _repository;
+  final Ref _ref;
+
+  VendorProfileNotifier(this._repository, this._ref) : super(const AsyncValue.loading()) {
+    _init();
+  }
+
+  void _init() {
+    _ref.listen<String?>(currentVendorIdProvider, (previous, next) {
+      if (next != null && next.isNotEmpty) {
+        loadVendorProfile(next);
+      } else {
+        state = const AsyncValue.data(null);
+      }
+    });
+
+    final vendorId = _ref.read(currentVendorIdProvider);
+    if (vendorId != null && vendorId.isNotEmpty) {
+      loadVendorProfile(vendorId);
+    }
+  }
+
+  Future<void> loadVendorProfile(String vendorId) async {
+    state = const AsyncValue.loading();
+    final result = await _repository.getVendorProfile(vendorId);
+    result.fold(
+      (failure) => state = AsyncValue.error(failure.message, StackTrace.current),
+      (vendor) => state = AsyncValue.data(vendor),
+    );
+  }
+
+  Future<String?> updateProfile(VendorEntity vendor) async {
+    final result = await _repository.updateVendorProfile(vendor);
+    return result.fold(
+      (failure) => failure.message,
+      (updatedVendor) {
+        state = AsyncValue.data(updatedVendor);
+        return null;
+      },
+    );
+  }
+
+  Future<String?> toggleOpenStatus(bool isOpen) async {
+    final current = state.valueOrNull;
+    if (current == null) return 'Profil vendor belum dimuat';
+    final updated = current.copyWith(isOpen: isOpen);
+    return await updateProfile(updated);
+  }
+}
+
+final vendorProfileProvider =
+    StateNotifierProvider<VendorProfileNotifier, AsyncValue<VendorEntity?>>((ref) {
+  return VendorProfileNotifier(ref.watch(sellerRepositoryProvider), ref);
 });
 
 // ── Menu Notifier ──
@@ -55,15 +131,18 @@ class MenuState {
 
 class MenuNotifier extends StateNotifier<MenuState> {
   final SellerRepository _repository;
-  final String sellerId;
+  final String vendorId;
 
-  MenuNotifier(this._repository, this.sellerId) : super(const MenuState()) {
-    loadMenu();
+  MenuNotifier(this._repository, this.vendorId) : super(const MenuState()) {
+    if (vendorId.isNotEmpty) {
+      loadMenu();
+    }
   }
 
   Future<void> loadMenu() async {
+    if (vendorId.isEmpty) return;
     state = state.copyWith(isLoading: true, clearError: true);
-    final result = await _repository.getMenuItems(sellerId);
+    final result = await _repository.getMenuItems(vendorId);
     result.fold(
       (failure) =>
           state = state.copyWith(isLoading: false, error: failure.message),
@@ -75,16 +154,23 @@ class MenuNotifier extends StateNotifier<MenuState> {
     required String name,
     String? description,
     required double price,
-    String? category,
-    bool available = true,
+    required String category,
+    required int stock,
+    required int estimatedTime,
+    String? label,
+    bool isAvailable = true,
   }) async {
+    if (vendorId.isEmpty) return 'Vendor ID tidak ditemukan';
     final result = await _repository.addMenuItem(
-      sellerId: sellerId,
+      vendorId: vendorId,
       name: name,
       description: description,
       price: price,
       category: category,
-      available: available,
+      stock: stock,
+      estimatedTime: estimatedTime,
+      label: label,
+      isAvailable: isAvailable,
     );
     return result.fold(
       (failure) => failure.message,
@@ -101,7 +187,10 @@ class MenuNotifier extends StateNotifier<MenuState> {
     String? description,
     double? price,
     String? category,
-    bool? available,
+    int? stock,
+    int? estimatedTime,
+    String? label,
+    bool? isAvailable,
   }) async {
     final result = await _repository.updateMenuItem(
       menuItemId: menuItemId,
@@ -109,7 +198,10 @@ class MenuNotifier extends StateNotifier<MenuState> {
       description: description,
       price: price,
       category: category,
-      available: available,
+      stock: stock,
+      estimatedTime: estimatedTime,
+      label: label,
+      isAvailable: isAvailable,
     );
     return result.fold(
       (failure) => failure.message,
@@ -134,8 +226,8 @@ class MenuNotifier extends StateNotifier<MenuState> {
 
 final menuNotifierProvider =
     StateNotifierProvider<MenuNotifier, MenuState>((ref) {
-  final sellerId = ref.watch(currentSellerIdProvider) ?? '';
-  return MenuNotifier(ref.watch(sellerRepositoryProvider), sellerId);
+  final vendorId = ref.watch(currentVendorIdProvider) ?? '';
+  return MenuNotifier(ref.watch(sellerRepositoryProvider), vendorId);
 });
 
 // ── Orders Notifier ──
@@ -170,24 +262,27 @@ class OrdersState {
 
   List<OrderEntity> get filteredOrders {
     if (filterStatus == 'all') return orders;
-    return orders.where((o) => o.status == filterStatus).toList();
+    return orders.where((o) => o.orderStatus == filterStatus).toList();
   }
 
   int countByStatus(String status) =>
-      orders.where((o) => o.status == status).length;
+      orders.where((o) => o.orderStatus == status).length;
 }
 
 class OrdersNotifier extends StateNotifier<OrdersState> {
   final SellerRepository _repository;
-  final String sellerId;
+  final String vendorId;
 
-  OrdersNotifier(this._repository, this.sellerId) : super(const OrdersState()) {
-    loadOrders();
+  OrdersNotifier(this._repository, this.vendorId) : super(const OrdersState()) {
+    if (vendorId.isNotEmpty) {
+      loadOrders();
+    }
   }
 
   Future<void> loadOrders() async {
+    if (vendorId.isEmpty) return;
     state = state.copyWith(isLoading: true, clearError: true);
-    final result = await _repository.getOrders(sellerId);
+    final result = await _repository.getOrders(vendorId);
     result.fold(
       (failure) =>
           state = state.copyWith(isLoading: false, error: failure.message),
@@ -216,11 +311,114 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
 
 final ordersNotifierProvider =
     StateNotifierProvider<OrdersNotifier, OrdersState>((ref) {
-  final sellerId = ref.watch(currentSellerIdProvider) ?? '';
-  return OrdersNotifier(ref.watch(sellerRepositoryProvider), sellerId);
+  final vendorId = ref.watch(currentVendorIdProvider) ?? '';
+  return OrdersNotifier(ref.watch(sellerRepositoryProvider), vendorId);
 });
 
-// ── Chat ──
+// ── Transaction Reports Notifier ──
+
+class SellerTransactionState {
+  final List<TransactionEntity> transactions;
+  final bool isLoading;
+  final String? error;
+  final String filterStatus;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  const SellerTransactionState({
+    this.transactions = const [],
+    this.isLoading = true,
+    this.error,
+    this.filterStatus = 'all',
+    this.startDate,
+    this.endDate,
+  });
+
+  SellerTransactionState copyWith({
+    List<TransactionEntity>? transactions,
+    bool? isLoading,
+    String? error,
+    String? filterStatus,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearError = false,
+    bool clearDates = false,
+  }) {
+    return SellerTransactionState(
+      transactions: transactions ?? this.transactions,
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      filterStatus: filterStatus ?? this.filterStatus,
+      startDate: clearDates ? null : (startDate ?? this.startDate),
+      endDate: clearDates ? null : (endDate ?? this.endDate),
+    );
+  }
+}
+
+class SellerTransactionNotifier extends StateNotifier<SellerTransactionState> {
+  final SellerRepository _repository;
+  final String vendorId;
+
+  SellerTransactionNotifier(this._repository, this.vendorId)
+      : super(const SellerTransactionState()) {
+    if (vendorId.isNotEmpty) {
+      loadReports();
+    }
+  }
+
+  Future<void> loadReports({
+    String? status,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    if (vendorId.isEmpty) return;
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final currentFilterStatus = status ?? state.filterStatus;
+    final from = startDate ?? state.startDate;
+    final to = endDate ?? state.endDate;
+
+    final result = await _repository.getTransactionReports(
+      vendorId,
+      status: currentFilterStatus == 'all' ? null : currentFilterStatus,
+      startDate: from,
+      endDate: to,
+    );
+
+    result.fold(
+      (failure) =>
+          state = state.copyWith(isLoading: false, error: failure.message),
+      (reports) => state = state.copyWith(
+        transactions: reports,
+        isLoading: false,
+        filterStatus: currentFilterStatus,
+        startDate: from,
+        endDate: to,
+      ),
+    );
+  }
+
+  void setFilter(String status) {
+    loadReports(status: status);
+  }
+
+  void setDateRange(DateTime? start, DateTime? end) {
+    loadReports(startDate: start, endDate: end);
+  }
+
+  void clearFilters() {
+    state = state.copyWith(filterStatus: 'all', clearDates: true);
+    loadReports(status: 'all');
+  }
+}
+
+final sellerTransactionReportProvider =
+    StateNotifierProvider<SellerTransactionNotifier, SellerTransactionState>((ref) {
+  final vendorId = ref.watch(currentVendorIdProvider) ?? '';
+  return SellerTransactionNotifier(ref.watch(sellerRepositoryProvider), vendorId);
+});
+
+// ── Chat Notifier ──
 
 class ChatNotifier extends StateNotifier<AsyncValue<List<ChatMessageEntity>>> {
   final SellerRepository _repository;

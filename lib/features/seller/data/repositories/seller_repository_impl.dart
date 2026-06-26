@@ -3,8 +3,12 @@ import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/menu_item_entity.dart';
 import '../../domain/entities/order_entity.dart';
+import '../../domain/entities/vendor_entity.dart';
+import '../../domain/entities/seller_profile_entity.dart';
+import '../../domain/entities/transaction_entity.dart';
 import '../../domain/repositories/seller_repository.dart';
 import '../datasources/seller_remote_datasource.dart';
+import '../models/vendor_model.dart';
 
 class SellerRepositoryImpl implements SellerRepository {
   final SellerRemoteDataSource remoteDataSource;
@@ -13,9 +17,9 @@ class SellerRepositoryImpl implements SellerRepository {
 
   @override
   Future<Either<Failure, List<MenuItemEntity>>> getMenuItems(
-      String sellerId) async {
+      String vendorId) async {
     try {
-      return Right(await remoteDataSource.getMenuItems(sellerId));
+      return Right(await remoteDataSource.getMenuItems(vendorId));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     }
@@ -23,21 +27,27 @@ class SellerRepositoryImpl implements SellerRepository {
 
   @override
   Future<Either<Failure, MenuItemEntity>> addMenuItem({
-    required String sellerId,
+    required String vendorId,
     required String name,
     String? description,
     required double price,
-    String? category,
-    bool available = true,
+    required String category,
+    required int stock,
+    required int estimatedTime,
+    String? label,
+    bool isAvailable = true,
   }) async {
     try {
       return Right(await remoteDataSource.addMenuItem(
-        sellerId: sellerId,
+        vendorId: vendorId,
         name: name,
         description: description,
         price: price,
         category: category,
-        available: available,
+        stock: stock,
+        estimatedTime: estimatedTime,
+        label: label,
+        isAvailable: isAvailable,
       ));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
@@ -51,7 +61,10 @@ class SellerRepositoryImpl implements SellerRepository {
     String? description,
     double? price,
     String? category,
-    bool? available,
+    int? stock,
+    int? estimatedTime,
+    String? label,
+    bool? isAvailable,
   }) async {
     try {
       return Right(await remoteDataSource.updateMenuItem(
@@ -60,7 +73,10 @@ class SellerRepositoryImpl implements SellerRepository {
         description: description,
         price: price,
         category: category,
-        available: available,
+        stock: stock,
+        estimatedTime: estimatedTime,
+        label: label,
+        isAvailable: isAvailable,
       ));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
@@ -78,9 +94,9 @@ class SellerRepositoryImpl implements SellerRepository {
   }
 
   @override
-  Future<Either<Failure, List<OrderEntity>>> getOrders(String sellerId) async {
+  Future<Either<Failure, List<OrderEntity>>> getOrders(String vendorId) async {
     try {
-      return Right(await remoteDataSource.getOrders(sellerId));
+      return Right(await remoteDataSource.getOrders(vendorId));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     }
@@ -132,6 +148,69 @@ class SellerRepositoryImpl implements SellerRepository {
       remoteDataSource.watchChatMessages(orderId);
 
   @override
-  Stream<List<OrderEntity>> watchOrders(String sellerId) =>
-      remoteDataSource.watchOrders(sellerId);
+  Stream<List<OrderEntity>> watchOrders(String vendorId) =>
+      remoteDataSource.watchOrders(vendorId);
+
+  @override
+  Future<Either<Failure, SellerProfileEntity>> getSellerProfile(String userId) async {
+    try {
+      return Right(await remoteDataSource.getSellerProfile(userId));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VendorEntity>> getVendorProfile(String vendorId) async {
+    try {
+      return Right(await remoteDataSource.getVendorProfile(vendorId));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VendorEntity>> updateVendorProfile(VendorEntity vendor) async {
+    try {
+      final model = VendorModel(
+        id: vendor.id,
+        campusId: vendor.campusId,
+        name: vendor.name,
+        description: vendor.description,
+        logoUrl: vendor.logoUrl,
+        location: vendor.location,
+        phone: vendor.phone,
+        openTime: vendor.openTime,
+        closeTime: vendor.closeTime,
+        isOpen: vendor.isOpen,
+        estimatedProcessTime: vendor.estimatedProcessTime,
+        verificationStatus: vendor.verificationStatus,
+        createdAt: vendor.createdAt,
+        updatedAt: vendor.updatedAt,
+      );
+      return Right(await remoteDataSource.updateVendorProfile(model));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<TransactionEntity>>> getTransactionReports(
+    String vendorId, {
+    DateTime? startDate,
+    DateTime? endDate,
+    String? status,
+  }) async {
+    try {
+      return Right(await remoteDataSource.getTransactionReports(
+        vendorId: vendorId,
+        startDate: startDate,
+        endDate: endDate,
+        status: status,
+      ));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
 }
+
