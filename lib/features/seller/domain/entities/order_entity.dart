@@ -3,49 +3,51 @@ import 'package:equatable/equatable.dart';
 class OrderItemEntity extends Equatable {
   final String id;
   final String orderId;
-  final String menuItemId;
+  final String menuId;
   final String? menuItemName;
   final int quantity;
   final double price;
+  final double subtotal;
 
   const OrderItemEntity({
     required this.id,
     required this.orderId,
-    required this.menuItemId,
+    required this.menuId,
     this.menuItemName,
     required this.quantity,
     required this.price,
+    required this.subtotal,
   });
-
-  double get subtotal => price * quantity;
 
   @override
   List<Object?> get props =>
-      [id, orderId, menuItemId, menuItemName, quantity, price];
+      [id, orderId, menuId, menuItemName, quantity, price, subtotal];
 }
 
 class OrderEntity extends Equatable {
   final String id;
-  final String userId;
+  final String customerId;
   final String? buyerName;
   final String? buyerPhone;
-  final String sellerId;
+  final String vendorId;
   final double totalPrice;
-  final String status;
-  final String? notes;
+  final String orderStatus;
+  final String paymentStatus;
+  final String? note;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final List<OrderItemEntity> items;
 
   const OrderEntity({
     required this.id,
-    required this.userId,
+    required this.customerId,
     this.buyerName,
     this.buyerPhone,
-    required this.sellerId,
+    required this.vendorId,
     required this.totalPrice,
-    required this.status,
-    this.notes,
+    required this.orderStatus,
+    required this.paymentStatus,
+    this.note,
     required this.createdAt,
     this.updatedAt,
     required this.items,
@@ -54,13 +56,14 @@ class OrderEntity extends Equatable {
   @override
   List<Object?> get props => [
         id,
-        userId,
+        customerId,
         buyerName,
         buyerPhone,
-        sellerId,
+        vendorId,
         totalPrice,
-        status,
-        notes,
+        orderStatus,
+        paymentStatus,
+        note,
         createdAt,
         updatedAt,
         items,
@@ -90,3 +93,4 @@ class ChatMessageEntity extends Equatable {
   List<Object?> get props =>
       [id, orderId, senderId, senderName, message, isRead, createdAt];
 }
+

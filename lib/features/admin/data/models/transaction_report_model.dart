@@ -24,7 +24,7 @@ class TransactionReportModel extends TransactionReportEntity {
       buyerEmail: buyer?['email'] as String? ?? '',
       sellerName: seller?['full_name'] as String? ?? 'Unknown Seller',
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
-      status: json['status'] as String? ?? 'pending',
+      status: json['order_status'] as String? ?? json['status'] as String? ?? 'pending',
       paymentMethod: json['payment_method'] as String? ?? 'cash',
       createdAt: DateTime.parse(json['created_at'] as String),
       items: rawItems.map((e) => Map<String, dynamic>.from(e as Map)).toList(),

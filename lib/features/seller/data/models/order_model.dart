@@ -4,22 +4,25 @@ class OrderItemModel extends OrderItemEntity {
   const OrderItemModel({
     required super.id,
     required super.orderId,
-    required super.menuItemId,
+    required super.menuId,
     super.menuItemName,
     required super.quantity,
     required super.price,
+    required super.subtotal,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
-    final menuItem = json['menu_items'] as Map<String, dynamic>?;
+    final menu = json['menus'] as Map<String, dynamic>? ?? json['menu_items'] as Map<String, dynamic>?;
+    final priceVal = (json['price'] as num?)?.toDouble() ?? 0.0;
+    final qty = json['quantity'] as int? ?? 1;
     return OrderItemModel(
-      id: json['id'] as String,
-      orderId: json['order_id'] as String,
-      menuItemId: json['menu_item_id'] as String,
-      menuItemName:
-          menuItem?['name'] as String? ?? json['menu_item_name'] as String?,
-      quantity: json['quantity'] as int,
-      price: (json['price'] as num).toDouble(),
+      id: json['id'] as String? ?? '',
+      orderId: json['order_id'] as String? ?? '',
+      menuId: json['menu_id'] as String? ?? json['menu_item_id'] as String? ?? '',
+      menuItemName: menu?['name'] as String? ?? json['menu_item_name'] as String? ?? '',
+      quantity: qty,
+      price: priceVal,
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? (priceVal * qty),
     );
   }
 }
@@ -27,13 +30,14 @@ class OrderItemModel extends OrderItemEntity {
 class OrderModel extends OrderEntity {
   const OrderModel({
     required super.id,
-    required super.userId,
+    required super.customerId,
     super.buyerName,
     super.buyerPhone,
-    required super.sellerId,
+    required super.vendorId,
     required super.totalPrice,
-    required super.status,
-    super.notes,
+    required super.orderStatus,
+    required super.paymentStatus,
+    super.note,
     required super.createdAt,
     super.updatedAt,
     required super.items,
@@ -44,18 +48,20 @@ class OrderModel extends OrderEntity {
     final rawItems = json['order_items'] as List<dynamic>? ?? [];
 
     return OrderModel(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
+      id: json['id'] as String? ?? '',
+      customerId: json['customer_id'] as String? ?? json['user_id'] as String? ?? json['buyer_id'] as String? ?? '',
       buyerName: buyer?['name'] as String? ?? buyer?['full_name'] as String?,
-      buyerPhone:
-          buyer?['phone'] as String? ?? buyer?['phone_number'] as String?,
-      sellerId: json['seller_id'] as String,
+      buyerPhone: buyer?['phone'] as String? ?? buyer?['phone_number'] as String?,
+      vendorId: json['vendor_id'] as String? ?? json['seller_id'] as String? ?? '',
       totalPrice: (json['total_price'] as num?)?.toDouble() ??
           (json['total_amount'] as num?)?.toDouble() ??
           0.0,
-      status: json['status'] as String? ?? 'pending',
-      notes: json['notes'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      orderStatus: json['order_status'] as String? ?? json['status'] as String? ?? 'pending',
+      paymentStatus: json['payment_status'] as String? ?? 'pending',
+      note: json['note'] as String? ?? json['notes'] as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
@@ -98,3 +104,4 @@ class ChatMessageModel extends ChatMessageEntity {
         'created_at': DateTime.now().toIso8601String(),
       };
 }
+
