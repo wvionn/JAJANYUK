@@ -15,26 +15,18 @@ class SellerReportsPage extends ConsumerWidget {
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final dateFormatter = DateFormat('dd MMM yyyy, HH:mm');
 
-    // Calculate today's stats from transaction list
-    final today = DateTime.now();
-    final todayTxs = state.transactions.where((tx) {
-      final date = tx.transactionDate;
-      return date.year == today.year &&
-          date.month == today.month &&
-          date.day == today.day;
-    }).toList();
+    final isFiltered = state.startDate != null || state.endDate != null;
+    final periodLabel = isFiltered ? 'Periode' : 'Semua Waktu';
 
-    final todayCompleted = todayTxs
+    // Calculate stats from currently filtered transaction list
+    final filteredCompleted = state.transactions
         .where((tx) => tx.paymentStatus == 'paid' || tx.orderStatus == 'completed')
         .toList();
 
-    final todayRevenue = todayCompleted.fold<double>(
+    final filteredRevenue = filteredCompleted.fold<double>(
         0.0, (sum, tx) => sum + tx.totalAmount);
 
-    // Filter overall counts for the cards
-    final totalCompletedCount = state.transactions
-        .where((tx) => tx.orderStatus == 'completed' || tx.paymentStatus == 'paid')
-        .length;
+    final totalCompletedCount = filteredCompleted.length;
     final totalCancelledCount = state.transactions
         .where((tx) => tx.orderStatus == 'cancelled' || tx.paymentStatus == 'failed')
         .length;
@@ -59,11 +51,12 @@ class SellerReportsPage extends ConsumerWidget {
         children: [
           // Stat Highlights Card Section
           _buildStatsCards(
-            todayTransactions: todayTxs.length,
-            todayRevenue: todayRevenue,
+            periodTransactions: state.transactions.length,
+            periodRevenue: filteredRevenue,
             totalCompleted: totalCompletedCount,
             totalCancelled: totalCancelledCount,
             formatter: formatter,
+            periodLabel: periodLabel,
           ),
           
           // Filters Area (Date range & Payment Status)
@@ -98,11 +91,12 @@ class SellerReportsPage extends ConsumerWidget {
   }
 
   Widget _buildStatsCards({
-    required int todayTransactions,
-    required double todayRevenue,
+    required int periodTransactions,
+    required double periodRevenue,
     required int totalCompleted,
     required int totalCancelled,
     required NumberFormat formatter,
+    required String periodLabel,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -131,13 +125,13 @@ class SellerReportsPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Pendapatan Hari Ini',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                Text(
+                  'Pendapatan $periodLabel',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  formatter.format(todayRevenue),
+                  formatter.format(periodRevenue),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -149,7 +143,7 @@ class SellerReportsPage extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Transaksi Hari Ini: $todayTransactions',
+                      'Transaksi $periodLabel: $periodTransactions',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     const Icon(Icons.trending_up_rounded, color: Colors.white, size: 20),

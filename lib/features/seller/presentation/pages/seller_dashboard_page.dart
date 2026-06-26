@@ -282,9 +282,10 @@ class SellerDashboardPage extends ConsumerWidget {
     final today = DateTime.now();
     final completedToday = ordersState.orders.where((o) {
       if (o.orderStatus != 'completed') return false;
-      return o.createdAt.year == today.year &&
-          o.createdAt.month == today.month &&
-          o.createdAt.day == today.day;
+      final localCreated = o.createdAt.toLocal();
+      return localCreated.year == today.year &&
+          localCreated.month == today.month &&
+          localCreated.day == today.day;
     }).toList();
     final completedCount = completedToday.length;
     final earningsToday =
