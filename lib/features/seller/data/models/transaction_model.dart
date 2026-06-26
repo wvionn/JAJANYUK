@@ -18,6 +18,14 @@ class TransactionModel extends TransactionEntity {
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     final buyer = json['buyer'] as Map<String, dynamic>?;
     final orderObj = json['orders'] as Map<String, dynamic>?;
+    final orderStatusVal = orderObj?['order_status'] as String? ?? json['order_status'] as String?;
+    
+    // Safety fallback: if order is completed, payment_status must be 'paid'
+    var payStatus = json['payment_status'] as String? ?? 'pending';
+    if (orderStatusVal == 'completed') {
+      payStatus = 'paid';
+    }
+
     return TransactionModel(
       id: json['id'] as String,
       orderId: json['order_id'] as String,
@@ -25,13 +33,13 @@ class TransactionModel extends TransactionEntity {
       customerId: json['customer_id'] as String?,
       buyerName: buyer?['name'] as String? ?? buyer?['full_name'] as String?,
       paymentMethod: json['payment_method'] as String? ?? 'cash',
-      paymentStatus: json['payment_status'] as String? ?? 'pending',
+      paymentStatus: payStatus,
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
       transactionDate: json['transaction_date'] != null
           ? DateTime.parse(json['transaction_date'] as String)
           : DateTime.parse(json['created_at'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
-      orderStatus: orderObj?['order_status'] as String? ?? json['order_status'] as String?,
+      orderStatus: orderStatusVal,
     );
   }
 
