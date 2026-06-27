@@ -192,7 +192,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        "Belum punya akun? ",
+                        "Belum punya akun?",
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       TextButton(
