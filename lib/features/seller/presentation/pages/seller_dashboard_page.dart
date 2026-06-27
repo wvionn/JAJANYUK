@@ -80,7 +80,7 @@ class SellerDashboardPage extends ConsumerWidget {
                       // Sales Chart
                       if (!txState.isLoading && txState.transactions.isNotEmpty) ...[
                         const Text(
-                          'Tren Penjualan (7 Hari Terakhir)',
+                          'Tren Penjualan Toko',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -88,7 +88,7 @@ class SellerDashboardPage extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        SellerTransactionChart(transactions: txState.transactions),
+                        SellerDashboardCharts(transactions: txState.transactions),
                         const SizedBox(height: 24),
                       ],
 
@@ -612,30 +612,121 @@ class _SellerMenu {
   });
 }
 
-class SellerTransactionChart extends StatelessWidget {
+class SellerDashboardCharts extends StatefulWidget {
   final List<TransactionEntity> transactions;
 
-  const SellerTransactionChart({super.key, required this.transactions});
+  const SellerDashboardCharts({super.key, required this.transactions});
+
+  @override
+  State<SellerDashboardCharts> createState() => _SellerDashboardChartsState();
+}
+
+class _SellerDashboardChartsState extends State<SellerDashboardCharts>
+    with SingleTickerProviderStateMixin {
+  int _currentPage = 0;
+  String _selectedRange = '7days'; // '7days', '30days', 'custom'
+  DateTimeRange? _customDateRange;
+  late PageController _pageController;
+  late AnimationController _animController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _animation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutQuart,
+    );
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _triggerAnimation() {
+    _animController.reset();
+    _animController.forward();
+  }
+
+  Future<void> _selectCustomRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025),
+      lastDate: DateTime.now(),
+      initialDateRange: _customDateRange ??
+          DateTimeRange(
+            start: DateTime.now().subtract(const Duration(days: 7)),
+            end: DateTime.now(),
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.secondary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedRange = 'custom';
+        _customDateRange = picked;
+      });
+      _triggerAnimation();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final dates = List.generate(7, (index) {
-      final d = now.subtract(Duration(days: 6 - index));
-      return DateTime(d.year, d.month, d.day);
-    });
+    final DateTime now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
+    if (_selectedRange == '30days') {
+      startDate = now.subtract(const Duration(days: 29));
+      startDate = DateTime(startDate.year, startDate.month, startDate.day);
+    } else if (_selectedRange == 'custom' && _customDateRange != null) {
+      startDate = DateTime(_customDateRange!.start.year, _customDateRange!.start.month, _customDateRange!.start.day);
+      endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+    } else {
+      startDate = now.subtract(const Duration(days: 6));
+      startDate = DateTime(startDate.year, startDate.month, startDate.day);
+    }
+
+    final int daysCount = endDate.difference(startDate).inDays + 1;
+    final List<DateTime> dates = List.generate(
+      daysCount,
+      (index) => startDate.add(Duration(days: index)),
+    );
+
+    final totalData = <DateTime, int>{};
     final qrisData = <DateTime, int>{};
     final cashData = <DateTime, int>{};
 
     for (final d in dates) {
+      totalData[d] = 0;
       qrisData[d] = 0;
       cashData[d] = 0;
     }
 
-    for (final r in transactions) {
+    for (final r in widget.transactions) {
       final rDate = DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day);
-      if (qrisData.containsKey(rDate)) {
+      if (totalData.containsKey(rDate)) {
+        totalData[rDate] = totalData[rDate]! + 1;
         if (r.paymentMethod.toLowerCase() == 'qris') {
           qrisData[rDate] = qrisData[rDate]! + 1;
         } else {
@@ -645,11 +736,17 @@ class SellerTransactionChart extends StatelessWidget {
     }
 
     int maxVal = 5;
-    for (final val in qrisData.values) {
-      if (val > maxVal) maxVal = val;
-    }
-    for (final val in cashData.values) {
-      if (val > maxVal) maxVal = val;
+    if (_currentPage == 0) {
+      for (final val in totalData.values) {
+        if (val > maxVal) maxVal = val;
+      }
+    } else {
+      for (final val in qrisData.values) {
+        if (val > maxVal) maxVal = val;
+      }
+      for (final val in cashData.values) {
+        if (val > maxVal) maxVal = val;
+      }
     }
     maxVal = ((maxVal + 4) ~/ 5) * 5;
 
@@ -657,12 +754,12 @@ class SellerTransactionChart extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -670,40 +767,141 @@ class SellerTransactionChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Metode Pembayaran',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Row(
-                children: [
-                  _legendItem('QRIS', Colors.blue),
-                  const SizedBox(width: 12),
-                  _legendItem('Tunai', Colors.orange),
-                ],
+              _buildRangeChip('7 Hari', '7days'),
+              const SizedBox(width: 8),
+              _buildRangeChip('30 Hari', '30days'),
+              const SizedBox(width: 8),
+              _buildRangeChip(
+                _selectedRange == 'custom' && _customDateRange != null
+                    ? '${DateFormat('dd/MM').format(_customDateRange!.start)}-${DateFormat('dd/MM').format(_customDateRange!.end)}'
+                    : 'Kustom',
+                'custom',
+                onTap: _selectCustomRange,
               ),
             ],
           ),
           const SizedBox(height: 16),
+
           SizedBox(
-            height: 140,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: SellerLineChartPainter(
-                dates: dates,
-                qrisData: qrisData,
-                cashData: cashData,
-                maxVal: maxVal,
-              ),
+            height: 200,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+                _triggerAnimation();
+              },
+              children: [
+                _buildChartSlide(
+                  title: 'Banyak Transaksi',
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, _) => CustomPaint(
+                      painter: SellerChartPainter(
+                        dates: dates,
+                        singleData: totalData,
+                        maxVal: maxVal,
+                        animationValue: _animation.value,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildChartSlide(
+                  title: 'Metode Pembayaran',
+                  legend: Row(
+                    children: [
+                      _legendItem('QRIS', Colors.blue),
+                      const SizedBox(width: 10),
+                      _legendItem('Tunai', Colors.orange),
+                    ],
+                  ),
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, _) => CustomPaint(
+                      painter: SellerChartPainter(
+                        dates: dates,
+                        qrisData: qrisData,
+                        cashData: cashData,
+                        maxVal: maxVal,
+                        animationValue: _animation.value,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 8),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(2, (index) => _buildIndicatorDot(index)),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRangeChip(String label, String value, {VoidCallback? onTap}) {
+    final isSelected = _selectedRange == value;
+    return GestureDetector(
+      onTap: onTap ?? () {
+        if (_selectedRange != value) {
+          setState(() {
+            _selectedRange = value;
+          });
+          _triggerAnimation();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.secondary.withValues(alpha: 0.1) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.secondary.withValues(alpha: 0.3) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? AppColors.secondary : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartSlide({
+    required String title,
+    Widget? legend,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if (legend != null) legend,
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(child: child),
+      ],
     );
   }
 
@@ -726,19 +924,37 @@ class SellerTransactionChart extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildIndicatorDot(int index) {
+    final isActive = _currentPage == index;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      width: isActive ? 14 : 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.secondary : Colors.grey[300],
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
 }
 
-class SellerLineChartPainter extends CustomPainter {
+class SellerChartPainter extends CustomPainter {
   final List<DateTime> dates;
-  final Map<DateTime, int> qrisData;
-  final Map<DateTime, int> cashData;
+  final Map<DateTime, int>? singleData;
+  final Map<DateTime, int>? qrisData;
+  final Map<DateTime, int>? cashData;
   final int maxVal;
+  final double animationValue;
 
-  SellerLineChartPainter({
+  SellerChartPainter({
     required this.dates,
-    required this.qrisData,
-    required this.cashData,
+    this.singleData,
+    this.qrisData,
+    this.cashData,
     required this.maxVal,
+    required this.animationValue,
   });
 
   @override
@@ -791,39 +1007,66 @@ class SellerLineChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      final date = dates[i];
-      textPainter.text = TextSpan(
-        text: DateFormat('dd/MM').format(date),
-        style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, paddingTop + chartHeight + 6),
-      );
+      bool shouldDrawLabel = false;
+      if (dates.length <= 7) {
+        shouldDrawLabel = true;
+      } else if (dates.length <= 15) {
+        shouldDrawLabel = i % 2 == 0;
+      } else {
+        shouldDrawLabel = i % 5 == 0 || i == dates.length - 1;
+      }
+
+      if (shouldDrawLabel) {
+        final date = dates[i];
+        textPainter.text = TextSpan(
+          text: DateFormat('dd/MM').format(date),
+          style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(x - textPainter.width / 2, paddingTop + chartHeight + 6),
+        );
+      }
     }
 
-    _drawLine(
-      canvas,
-      stepX,
-      paddingLeft,
-      paddingTop,
-      chartHeight,
-      qrisData,
-      Colors.blue,
-      Colors.blue.withValues(alpha: 0.08),
-    );
-
-    _drawLine(
-      canvas,
-      stepX,
-      paddingLeft,
-      paddingTop,
-      chartHeight,
-      cashData,
-      Colors.orange,
-      Colors.orange.withValues(alpha: 0.08),
-    );
+    if (singleData != null) {
+      _drawLine(
+        canvas,
+        stepX,
+        paddingLeft,
+        paddingTop,
+        chartHeight,
+        singleData!,
+        AppColors.secondary,
+        AppColors.secondary.withValues(alpha: 0.08),
+      );
+    } else {
+      if (qrisData != null) {
+        _drawLine(
+          canvas,
+          stepX,
+          paddingLeft,
+          paddingTop,
+          chartHeight,
+          qrisData!,
+          Colors.blue,
+          Colors.blue.withValues(alpha: 0.08),
+        );
+      }
+      if (cashData != null) {
+        _drawLine(
+          canvas,
+          stepX,
+          paddingLeft,
+          paddingTop,
+          chartHeight,
+          cashData!,
+          Colors.orange,
+          Colors.orange.withValues(alpha: 0.08),
+        );
+      }
+    }
   }
 
   void _drawLine(
@@ -844,7 +1087,7 @@ class SellerLineChartPainter extends CustomPainter {
       final date = dates[i];
       final val = data[date] ?? 0;
       final double x = paddingLeft + (i * stepX);
-      final double y = paddingTop + chartHeight - (val * chartHeight / maxVal);
+      final double y = paddingTop + chartHeight - (val * chartHeight / maxVal) * animationValue;
       points.add(Offset(x, y));
 
       if (i == 0) {
@@ -886,10 +1129,12 @@ class SellerLineChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant SellerLineChartPainter oldDelegate) {
+  bool shouldRepaint(covariant SellerChartPainter oldDelegate) {
     return oldDelegate.dates != dates ||
+        oldDelegate.singleData != singleData ||
         oldDelegate.qrisData != qrisData ||
         oldDelegate.cashData != cashData ||
-        oldDelegate.maxVal != maxVal;
+        oldDelegate.maxVal != maxVal ||
+        oldDelegate.animationValue != animationValue;
   }
 }
