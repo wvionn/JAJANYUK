@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../admin/presentation/providers/admin_provider.dart';
 import '../providers/seller_provider.dart';
+import '../../domain/entities/transaction_entity.dart';
 
 class SellerDashboardPage extends ConsumerWidget {
   const SellerDashboardPage({super.key});
@@ -21,6 +22,7 @@ class SellerDashboardPage extends ConsumerWidget {
     final campusAsync = ref.watch(campusNotifierProvider);
     final ordersState = ref.watch(ordersNotifierProvider);
     final menuState = ref.watch(menuNotifierProvider);
+    final txState = ref.watch(sellerTransactionReportProvider);
 
     final vendor = vendorAsync.valueOrNull;
     final campuses = campusAsync.valueOrNull ?? [];
@@ -46,6 +48,7 @@ class SellerDashboardPage extends ConsumerWidget {
                   ref.invalidate(sellerProfileFutureProvider);
                   ref.read(ordersNotifierProvider.notifier).loadOrders();
                   ref.read(menuNotifierProvider.notifier).loadMenu();
+                  ref.read(sellerTransactionReportProvider.notifier).loadReports();
                   final vId = ref.read(currentVendorIdProvider);
                   if (vId != null && vId.isNotEmpty) {
                     ref.read(vendorProfileProvider.notifier).loadVendorProfile(vId);
@@ -72,7 +75,22 @@ class SellerDashboardPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       _buildStatsGrid(ordersState, menuState),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
+
+                      // Sales Chart
+                      if (!txState.isLoading && txState.transactions.isNotEmpty) ...[
+                        const Text(
+                          'Tren Penjualan (7 Hari Terakhir)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SellerTransactionChart(transactions: txState.transactions),
+                        const SizedBox(height: 24),
+                      ],
 
                       // Menu Utama
                       const Text(
@@ -592,4 +610,286 @@ class _SellerMenu {
     required this.route,
     this.badge = 0,
   });
+}
+
+class SellerTransactionChart extends StatelessWidget {
+  final List<TransactionEntity> transactions;
+
+  const SellerTransactionChart({super.key, required this.transactions});
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final dates = List.generate(7, (index) {
+      final d = now.subtract(Duration(days: 6 - index));
+      return DateTime(d.year, d.month, d.day);
+    });
+
+    final qrisData = <DateTime, int>{};
+    final cashData = <DateTime, int>{};
+
+    for (final d in dates) {
+      qrisData[d] = 0;
+      cashData[d] = 0;
+    }
+
+    for (final r in transactions) {
+      final rDate = DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day);
+      if (qrisData.containsKey(rDate)) {
+        if (r.paymentMethod.toLowerCase() == 'qris') {
+          qrisData[rDate] = qrisData[rDate]! + 1;
+        } else {
+          cashData[rDate] = cashData[rDate]! + 1;
+        }
+      }
+    }
+
+    int maxVal = 5;
+    for (final val in qrisData.values) {
+      if (val > maxVal) maxVal = val;
+    }
+    for (final val in cashData.values) {
+      if (val > maxVal) maxVal = val;
+    }
+    maxVal = ((maxVal + 4) ~/ 5) * 5;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Metode Pembayaran',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Row(
+                children: [
+                  _legendItem('QRIS', Colors.blue),
+                  const SizedBox(width: 12),
+                  _legendItem('Tunai', Colors.orange),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 140,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: SellerLineChartPainter(
+                dates: dates,
+                qrisData: qrisData,
+                cashData: cashData,
+                maxVal: maxVal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+class SellerLineChartPainter extends CustomPainter {
+  final List<DateTime> dates;
+  final Map<DateTime, int> qrisData;
+  final Map<DateTime, int> cashData;
+  final int maxVal;
+
+  SellerLineChartPainter({
+    required this.dates,
+    required this.qrisData,
+    required this.cashData,
+    required this.maxVal,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.grey[150]!
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    const double paddingLeft = 20.0;
+    const double paddingBottom = 20.0;
+    const double paddingTop = 10.0;
+    const double paddingRight = 10.0;
+
+    final double chartWidth = size.width - paddingLeft - paddingRight;
+    final double chartHeight = size.height - paddingTop - paddingBottom;
+
+    final int divisions = 4;
+    for (int i = 0; i <= divisions; i++) {
+      final double y = paddingTop + chartHeight - (i * chartHeight / divisions);
+      canvas.drawLine(
+        Offset(paddingLeft, y),
+        Offset(size.width - paddingRight, y),
+        gridPaint,
+      );
+
+      final int value = (i * maxVal / divisions).round();
+      textPainter.text = TextSpan(
+        text: value.toString(),
+        style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(paddingLeft - textPainter.width - 6, y - textPainter.height / 2),
+      );
+    }
+
+    final double stepX = chartWidth / (dates.length - 1);
+    for (int i = 0; i < dates.length; i++) {
+      final double x = paddingLeft + (i * stepX);
+      
+      canvas.drawLine(
+        Offset(x, paddingTop),
+        Offset(x, paddingTop + chartHeight),
+        gridPaint,
+      );
+
+      final date = dates[i];
+      textPainter.text = TextSpan(
+        text: DateFormat('dd/MM').format(date),
+        style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, paddingTop + chartHeight + 6),
+      );
+    }
+
+    _drawLine(
+      canvas,
+      stepX,
+      paddingLeft,
+      paddingTop,
+      chartHeight,
+      qrisData,
+      Colors.blue,
+      Colors.blue.withValues(alpha: 0.08),
+    );
+
+    _drawLine(
+      canvas,
+      stepX,
+      paddingLeft,
+      paddingTop,
+      chartHeight,
+      cashData,
+      Colors.orange,
+      Colors.orange.withValues(alpha: 0.08),
+    );
+  }
+
+  void _drawLine(
+    Canvas canvas,
+    double stepX,
+    double paddingLeft,
+    double paddingTop,
+    double chartHeight,
+    Map<DateTime, int> data,
+    Color strokeColor,
+    Color fillColor,
+  ) {
+    final path = Path();
+    final fillPath = Path();
+    final List<Offset> points = [];
+
+    for (int i = 0; i < dates.length; i++) {
+      final date = dates[i];
+      final val = data[date] ?? 0;
+      final double x = paddingLeft + (i * stepX);
+      final double y = paddingTop + chartHeight - (val * chartHeight / maxVal);
+      points.add(Offset(x, y));
+
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, paddingTop + chartHeight);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+    fillPath.lineTo(points.last.dx, paddingTop + chartHeight);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(fillPath, fillPaint);
+
+    final linePaint = Paint()
+      ..color = strokeColor
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+    canvas.drawPath(path, linePaint);
+
+    final dotOuterPaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.fill;
+    final dotInnerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (final p in points) {
+      canvas.drawCircle(p, 3.5, dotOuterPaint);
+      canvas.drawCircle(p, 1.5, dotInnerPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SellerLineChartPainter oldDelegate) {
+    return oldDelegate.dates != dates ||
+        oldDelegate.qrisData != qrisData ||
+        oldDelegate.cashData != cashData ||
+        oldDelegate.maxVal != maxVal;
+  }
 }
