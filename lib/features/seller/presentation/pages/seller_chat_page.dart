@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/order_entity.dart';
 import '../providers/seller_provider.dart';
@@ -61,7 +60,7 @@ class _SellerChatPageState extends ConsumerState<SellerChatPage> {
   @override
   Widget build(BuildContext context) {
     final chatAsync = ref.watch(chatNotifierProvider(widget.orderId));
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final currentUserId = ref.watch(currentSellerIdProvider) ?? '';
 
     // Find order info
     final ordersState = ref.watch(ordersNotifierProvider);
