@@ -24,6 +24,7 @@ class SellerDashboardPage extends ConsumerWidget {
     final menuState = ref.watch(menuNotifierProvider);
     final txState = ref.watch(sellerTransactionReportProvider);
 
+
     final vendor = vendorAsync.valueOrNull;
     final campuses = campusAsync.valueOrNull ?? [];
     
@@ -78,7 +79,7 @@ class SellerDashboardPage extends ConsumerWidget {
                       const SizedBox(height: 20),
 
                       // Sales Chart
-                      if (!txState.isLoading && txState.transactions.isNotEmpty) ...[
+                      if (!txState.isLoading) ...[
                         const Text(
                           'Tren Penjualan Toko',
                           style: TextStyle(
@@ -713,24 +714,25 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
       (index) => startDate.add(Duration(days: index)),
     );
 
-    final totalData = <DateTime, int>{};
-    final qrisData = <DateTime, int>{};
-    final cashData = <DateTime, int>{};
+    final totalData = <String, int>{};
+    final qrisData = <String, int>{};
+    final cashData = <String, int>{};
 
     for (final d in dates) {
-      totalData[d] = 0;
-      qrisData[d] = 0;
-      cashData[d] = 0;
+      final key = DateFormat('yyyy-MM-dd').format(d);
+      totalData[key] = 0;
+      qrisData[key] = 0;
+      cashData[key] = 0;
     }
 
     for (final r in widget.transactions) {
-      final rDate = DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day);
-      if (totalData.containsKey(rDate)) {
-        totalData[rDate] = totalData[rDate]! + 1;
+      final key = DateFormat('yyyy-MM-dd').format(r.createdAt.toLocal());
+      if (totalData.containsKey(key)) {
+        totalData[key] = totalData[key]! + 1;
         if (r.paymentMethod.toLowerCase() == 'qris') {
-          qrisData[rDate] = qrisData[rDate]! + 1;
+          qrisData[key] = qrisData[key]! + 1;
         } else {
-          cashData[rDate] = cashData[rDate]! + 1;
+          cashData[key] = cashData[key]! + 1;
         }
       }
     }
@@ -839,6 +841,36 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(2, (index) => _buildIndicatorDot(index)),
           ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 4),
+          const Text(
+            'Detail Transaksi Toko (Debug):',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...widget.transactions.take(5).map((tx) {
+            final localDate = tx.createdAt.toLocal();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '• ${tx.paymentMethod.toUpperCase()} | Rp ${tx.totalAmount.toStringAsFixed(0)} | ${DateFormat('dd MMM yyyy HH:mm').format(localDate)}',
+                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+              ),
+            );
+          }),
+          if (widget.transactions.length > 5)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '... dan ${widget.transactions.length - 5} transaksi lainnya',
+                style: const TextStyle(fontSize: 8, color: AppColors.textHint),
+              ),
+            ),
         ],
       ),
     );
@@ -942,9 +974,9 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
 
 class SellerChartPainter extends CustomPainter {
   final List<DateTime> dates;
-  final Map<DateTime, int>? singleData;
-  final Map<DateTime, int>? qrisData;
-  final Map<DateTime, int>? cashData;
+  final Map<String, int>? singleData;
+  final Map<String, int>? qrisData;
+  final Map<String, int>? cashData;
   final int maxVal;
   final double animationValue;
 
@@ -1075,7 +1107,7 @@ class SellerChartPainter extends CustomPainter {
     double paddingLeft,
     double paddingTop,
     double chartHeight,
-    Map<DateTime, int> data,
+    Map<String, int> data,
     Color strokeColor,
     Color fillColor,
   ) {
@@ -1085,7 +1117,8 @@ class SellerChartPainter extends CustomPainter {
 
     for (int i = 0; i < dates.length; i++) {
       final date = dates[i];
-      final val = data[date] ?? 0;
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final val = data[dateStr] ?? 0;
       final double x = paddingLeft + (i * stepX);
       final double y = paddingTop + chartHeight - (val * chartHeight / maxVal) * animationValue;
       points.add(Offset(x, y));
