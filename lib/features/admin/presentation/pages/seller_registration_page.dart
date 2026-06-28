@@ -232,7 +232,7 @@ class _SellerRegistrationPageState
                     loading: () => const LinearProgressIndicator(),
                     error: (_, __) => const Text('Gagal memuat kampus'),
                     data: (campuses) => DropdownButtonFormField<CampusEntity>(
-                      value: _selectedCampus,
+                      initialValue: _selectedCampus,
                       hint: const Text('Pilih kampus (opsional)'),
                       decoration: InputDecoration(
                         filled: true,

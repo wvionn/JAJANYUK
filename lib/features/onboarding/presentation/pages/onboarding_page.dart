@@ -118,7 +118,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             width: 200,
             height: 200,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(data.icon, size: 100, color: Colors.white),
@@ -156,7 +156,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           decoration: BoxDecoration(
             color: _currentPage == index
                 ? Colors.white
-                : Colors.white.withOpacity(0.5),
+                : Colors.white.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(4),
           ),
         ),

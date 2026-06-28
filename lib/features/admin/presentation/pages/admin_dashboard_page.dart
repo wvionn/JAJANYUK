@@ -168,28 +168,28 @@ class AdminDashboardPage extends ConsumerWidget {
 
   Widget _buildMenuGrid(BuildContext context) {
     final menus = [
-      _AdminMenu(
+      const _AdminMenu(
         title: 'Kelola User',
         subtitle: 'Lihat & atur data pengguna',
         icon: Icons.manage_accounts_rounded,
         color: AppColors.primary,
         route: RouteNames.adminUsers,
       ),
-      _AdminMenu(
+      const _AdminMenu(
         title: 'Kelola Kantin',
         subtitle: 'Daftar & atur seller kantin',
         icon: Icons.store_rounded,
         color: AppColors.secondary,
         route: RouteNames.adminSellers,
       ),
-      _AdminMenu(
+      const _AdminMenu(
         title: 'Laporan Transaksi',
         subtitle: 'Pantau riwayat transaksi',
         icon: Icons.bar_chart_rounded,
         color: AppColors.success,
         route: RouteNames.adminTransactions,
       ),
-      _AdminMenu(
+      const _AdminMenu(
         title: 'Cabang Kampus',
         subtitle: 'Kelola lokasi kampus',
         icon: Icons.school_rounded,

@@ -7,10 +7,10 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/campus_selection_page.dart';
-import '../../features/home/presentation/pages/home_page.dart';
-import '../../features/cart/presentation/pages/cart_page.dart';
-import '../../features/notification/presentation/pages/notification_page.dart';
-import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/user/presentation/pages/user_home_page.dart';
+import '../../features/user/presentation/pages/cart_page.dart';
+import '../../features/user/presentation/pages/notification_page.dart';
+import '../../features/user/presentation/pages/profile_page.dart';
 import '../../features/admin/presentation/pages/admin_dashboard_page.dart';
 import '../../features/admin/presentation/pages/admin_users_page.dart';
 import '../../features/admin/presentation/pages/admin_sellers_page.dart';
@@ -64,7 +64,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.home,
             name: RouteNames.home,
-            builder: (context, state) => const HomePage(),
+            builder: (context, state) => const UserHomePage(),
           ),
           GoRoute(
             path: RouteNames.cart,

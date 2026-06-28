@@ -541,7 +541,7 @@ class _MenuFormSheetState extends ConsumerState<_MenuFormSheet> {
                   Switch(
                     value: _available,
                     onChanged: (v) => setState(() => _available = v),
-                    activeColor: AppColors.success,
+                    activeThumbColor: AppColors.success,
                   ),
                 ],
               ),

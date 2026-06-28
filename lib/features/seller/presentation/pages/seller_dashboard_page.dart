@@ -162,7 +162,7 @@ class SellerDashboardPage extends ConsumerWidget {
     final pendingCount = ordersState.countByStatus('pending');
 
     final menus = [
-      _SellerMenu(
+      const _SellerMenu(
         title: 'Kelola Menu',
         subtitle: 'Tambah & edit menu kantin',
         icon: Icons.menu_book_rounded,
