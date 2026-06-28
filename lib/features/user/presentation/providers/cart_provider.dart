@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/order_remote_datasource.dart';
@@ -15,6 +16,10 @@ final orderRemoteDatasourceProvider = Provider<OrderRemoteDatasource>((ref) {
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   return OrderRepositoryImpl(ref.watch(orderRemoteDatasourceProvider));
+});
+
+final cartNotifierProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
+  return CartNotifier(ref.watch(orderRepositoryProvider));
 });
 
 // ── Cart ──
@@ -114,10 +119,55 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 }
 
-final cartNotifierProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier(ref.watch(orderRepositoryProvider));
-});
+final orderHistoryProvider = StreamProvider<List<OrderEntity>>((ref) {
+  final client = Supabase.instance.client;
+  final userId = client.auth.currentUser!.id;
+  final controller = StreamController<List<OrderEntity>>();
 
-final orderHistoryProvider = FutureProvider<List<OrderEntity>>((ref) async {
-  return ref.watch(orderRepositoryProvider).getMyOrders();
+  Future<void> fetchOrders() async {
+    final response = await client
+        .from('orders')
+        .select()
+        .eq('customer_id', userId)
+        .order('created_at', ascending: false);
+    final orders = (response as List).map((e) => OrderEntity(
+      id: e['id'],
+      customerId: e['customer_id'],
+      vendorId: e['vendor_id'],
+      totalPrice: (e['total_price'] as num).toDouble(),
+      orderStatus: e['order_status'],
+      paymentStatus: e['payment_status'],
+      note: e['note'],
+      createdAt: DateTime.parse(e['created_at']),
+    )).toList();
+    controller.add(orders);
+  }
+
+  fetchOrders();
+
+  final subscription = client
+      .from('orders')
+      .stream(primaryKey: ['id'])
+      .eq('customer_id', userId)
+      .order('created_at')
+      .listen((data) {
+        final orders = data.map((e) => OrderEntity(
+          id: e['id'],
+          customerId: e['customer_id'],
+          vendorId: e['vendor_id'],
+          totalPrice: (e['total_price'] as num).toDouble(),
+          orderStatus: e['order_status'],
+          paymentStatus: e['payment_status'],
+          note: e['note'],
+          createdAt: DateTime.parse(e['created_at']),
+        )).toList();
+        controller.add(orders);
+      });
+
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });

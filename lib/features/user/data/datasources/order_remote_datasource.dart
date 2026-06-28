@@ -16,12 +16,12 @@ class OrderRemoteDatasource {
     final totalPrice = items.fold(0.0, (sum, item) => sum + item.subtotal);
 
     // Buat order
-    final orderResponse = await _client.from('orders').insert({
+final orderResponse = await _client.from('orders').insert({
       'customer_id': userId,
       'vendor_id': vendorId,
       'total_price': totalPrice,
       'order_status': 'pending',
-      'payment_status': 'unpaid',
+      'payment_status': 'pending',
       'note': note,
     }).select().single();
 

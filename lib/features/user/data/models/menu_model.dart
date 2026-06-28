@@ -32,7 +32,8 @@ class MenuModel extends MenuEntity {
       vendorId: json['vendor_id'] as String,
       name: name,
       description: json['description'] as String?,
-      price: (json['price'] as num).toDouble(),
+ 
+     price: (json['price'] as num).toDouble(),
       category: uiCategory,
       imageUrl: json['image_url'] as String?,
     );

@@ -47,7 +47,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   },
                   title: const Text('Notifikasi Pesanan'),
                   subtitle: const Text('Terima pemberitahuan saat status pesanan berubah'),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
@@ -59,7 +59,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   },
                   title: const Text('Mode Gelap'),
                   subtitle: const Text('Ubah tampilan aplikasi menjadi gelap'),
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ],
             ),

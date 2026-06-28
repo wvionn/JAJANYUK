@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/seller_remote_datasource.dart';
@@ -272,22 +273,29 @@ class OrdersState {
 class OrdersNotifier extends StateNotifier<OrdersState> {
   final SellerRepository _repository;
   final String vendorId;
+  StreamSubscription? _subscription;
 
   OrdersNotifier(this._repository, this.vendorId) : super(const OrdersState()) {
     if (vendorId.isNotEmpty) {
-      loadOrders();
+      _subscribeToOrders();
     }
   }
 
-  Future<void> loadOrders() async {
-    if (vendorId.isEmpty) return;
+  void _subscribeToOrders() {
+    _subscription?.cancel();
     state = state.copyWith(isLoading: true, clearError: true);
-    final result = await _repository.getOrders(vendorId);
-    result.fold(
-      (failure) =>
-          state = state.copyWith(isLoading: false, error: failure.message),
-      (orders) => state = state.copyWith(orders: orders, isLoading: false),
+    _subscription = _repository.watchOrders(vendorId).listen(
+      (orders) {
+        state = state.copyWith(orders: orders, isLoading: false);
+      },
+      onError: (err, stack) {
+        state = state.copyWith(isLoading: false, error: err.toString());
+      },
     );
+  }
+
+  Future<void> loadOrders() async {
+    _subscribeToOrders();
   }
 
   void setFilter(String status) {
@@ -299,13 +307,13 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       orderId: orderId,
       status: newStatus,
     );
-    return result.fold(
-      (_) => false,
-      (_) {
-        loadOrders();
-        return true;
-      },
-    );
+    return result.isRight();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }
 
@@ -424,18 +432,22 @@ class ChatNotifier extends StateNotifier<AsyncValue<List<ChatMessageEntity>>> {
   final SellerRepository _repository;
   final String orderId;
   final String currentUserId;
+  StreamSubscription? _subscription;
 
   ChatNotifier(this._repository, this.orderId, this.currentUserId)
       : super(const AsyncValue.loading()) {
-    loadMessages();
+    _subscribeToMessages();
   }
 
-  Future<void> loadMessages() async {
-    final result = await _repository.getChatMessages(orderId);
-    result.fold(
-      (failure) =>
-          state = AsyncValue.error(failure.message, StackTrace.current),
-      (msgs) => state = AsyncValue.data(msgs),
+  void _subscribeToMessages() {
+    _subscription?.cancel();
+    _subscription = _repository.watchChatMessages(orderId).listen(
+      (msgs) {
+        state = AsyncValue.data(msgs);
+      },
+      onError: (err, stack) {
+        state = AsyncValue.error(err, stack);
+      },
     );
   }
 
@@ -446,13 +458,13 @@ class ChatNotifier extends StateNotifier<AsyncValue<List<ChatMessageEntity>>> {
       senderId: currentUserId,
       message: message.trim(),
     );
-    return result.fold(
-      (_) => false,
-      (_) {
-        loadMessages();
-        return true;
-      },
-    );
+    return result.isRight();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }
 

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/cart_provider.dart';
 
 class ChatMessage {
   final String text;
@@ -14,7 +17,30 @@ class ChatMessage {
   });
 }
 
-class ChatPage extends StatefulWidget {
+// Real-time chat messages stream provider based on orderId
+final userChatStreamProvider = StreamProvider.family<List<ChatMessage>, String>((ref, orderId) {
+  final client = Supabase.instance.client;
+  final currentUserId = client.auth.currentUser?.id ?? '';
+  
+  return client
+      .from('chat_messages')
+      .stream(primaryKey: ['id'])
+      .eq('order_id', orderId)
+      .order('created_at')
+      .map((list) {
+        return list.map((e) {
+          return ChatMessage(
+            text: e['message'] as String? ?? '',
+            isMe: (e['sender_id'] as String?) == currentUserId,
+            time: e['created_at'] != null 
+                ? DateTime.parse(e['created_at'] as String) 
+                : DateTime.now(),
+          );
+        }).toList();
+      });
+});
+
+class ChatPage extends ConsumerStatefulWidget {
   final String vendorId;
   final String vendorName;
 
@@ -25,20 +51,12 @@ class ChatPage extends StatefulWidget {
   });
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends ConsumerState<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isTyping = false;
-
-  final List<ChatMessage> _messages = [
-    ChatMessage(text: 'Halo kak! Ada yang bisa kami bantu? 😊', isMe: false, time: DateTime.now().subtract(const Duration(minutes: 10))),
-    ChatMessage(text: 'Halo! Saya mau tanya, apakah Nasi Goreng Spesial bisa tanpa bawang?', isMe: true, time: DateTime.now().subtract(const Duration(minutes: 8))),
-    ChatMessage(text: 'Bisa kak! Nanti kami catatan pesanannya ya 👍', isMe: false, time: DateTime.now().subtract(const Duration(minutes: 7))),
-    ChatMessage(text: 'Siap, terima kasih banyak!', isMe: true, time: DateTime.now().subtract(const Duration(minutes: 6))),
-  ];
 
   final List<String> _quickReplies = [
     'Berapa lama estimasi pesanan?',
@@ -47,37 +65,32 @@ class _ChatPageState extends State<ChatPage> {
     'Pesanan saya sudah siap?',
   ];
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text, String orderId) async {
     if (text.trim().isEmpty) return;
-    final now = DateTime.now();
-    setState(() {
-      _messages.add(ChatMessage(text: text.trim(), isMe: true, time: now));
-      _messageController.clear();
-    });
-    _scrollToBottom();
+    final client = Supabase.instance.client;
+    final currentUserId = client.auth.currentUser?.id;
+    if (currentUserId == null) return;
 
-    // Simulate vendor typing then reply
-    setState(() => _isTyping = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add(ChatMessage(
-          text: _getAutoReply(text),
-          isMe: false,
-          time: DateTime.now(),
-        ));
+    try {
+      await client.from('chat_messages').insert({
+        'order_id': orderId,
+        'sender_id': currentUserId,
+        'message': text.trim(),
+        'is_read': false,
+        'created_at': DateTime.now().toIso8601String(),
       });
+      _messageController.clear();
       _scrollToBottom();
-    });
-  }
-
-  String _getAutoReply(String msg) {
-    final lower = msg.toLowerCase();
-    if (lower.contains('estimasi') || lower.contains('lama')) return 'Estimasi pesanan sekitar 5-10 menit kak 🙏';
-    if (lower.contains('promo')) return 'Hari ini ada promo beli 2 gratis 1 minuman kak! 🎉';
-    if (lower.contains('siap') || lower.contains('ready')) return 'Pesanan kakak sedang dalam proses ya, sebentar lagi selesai! ⏳';
-    return 'Terima kasih pesannya kak, kami segera proses 🙏';
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim pesan: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -93,8 +106,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   String _formatTime(DateTime time) {
-    final h = time.hour.toString().padLeft(2, '0');
-    final m = time.minute.toString().padLeft(2, '0');
+    final localTime = time.toLocal();
+    final h = localTime.hour.toString().padLeft(2, '0');
+    final m = localTime.minute.toString().padLeft(2, '0');
     return '$h:$m';
   }
 
@@ -107,6 +121,8 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ordersAsync = ref.watch(orderHistoryProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       appBar: AppBar(
@@ -120,7 +136,7 @@ class _ChatPageState extends State<ChatPage> {
               radius: 20,
               backgroundColor: const Color(0xFF4F7FFF),
               child: Text(
-                widget.vendorName[0].toUpperCase(),
+                widget.vendorName.isNotEmpty ? widget.vendorName[0].toUpperCase() : 'W',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -160,147 +176,188 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Chat area
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length) {
-                  // Typing indicator
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(18),
-                          topRight: Radius.circular(18),
-                          bottomRight: Radius.circular(18),
-                        ),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _typingDot(0),
-                          const SizedBox(width: 4),
-                          _typingDot(1),
-                          const SizedBox(width: 4),
-                          _typingDot(2),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return _buildBubble(_messages[index]);
-              },
-            ),
+      body: ordersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Gagal memuat data pesanan: $err', textAlign: TextAlign.center),
           ),
+        ),
+        data: (orders) {
+          final latestOrder = orders.where((o) => o.vendorId == widget.vendorId).firstOrNull;
+          if (latestOrder == null) {
+            return _buildNoOrderView();
+          }
 
-          // Quick replies
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: _quickReplies.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () => _sendMessage(_quickReplies[index]),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF4F7FFF).withValues(alpha: 0.4)),
-                    ),
-                    child: Text(
-                      _quickReplies[index],
-                      style: const TextStyle(
-                        color: Color(0xFF4F7FFF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
+          final chatAsync = ref.watch(userChatStreamProvider(latestOrder.id));
 
-          // Input bar
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -3))],
+          return chatAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Gagal memuat obrolan: $err', textAlign: TextAlign.center),
+              ),
             ),
-            child: SafeArea(
-              child: Row(
+            data: (messages) {
+              WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+              return Column(
                 children: [
+                  // Chat area
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F4FF),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
-                            onPressed: () {},
+                    child: messages.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_outline, size: 56, color: Colors.grey[400]),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Mulai percakapan dengan ${widget.vendorName}',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              return _buildBubble(messages[index]);
+                            },
                           ),
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              decoration: const InputDecoration(
-                                hintText: 'Ketik pesan...',
-                                hintStyle: TextStyle(color: Colors.grey),
-                                border: InputBorder.none,
-                                isDense: true,
+                  ),
+
+                  // Quick replies
+                  SizedBox(
+                    height: 44,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _quickReplies.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () => _sendMessage(_quickReplies[index], latestOrder.id),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFF4F7FFF).withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              _quickReplies[index],
+                              style: const TextStyle(
+                                color: Color(0xFF4F7FFF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: _sendMessage,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.attach_file_outlined, color: Colors.grey),
-                            onPressed: () {},
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Input bar
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -3))],
+                    ),
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0F4FF),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+                                    onPressed: () {},
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _messageController,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Ketik pesan...',
+                                        hintStyle: TextStyle(color: Colors.grey),
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                      ),
+                                      textInputAction: TextInputAction.send,
+                                      onSubmitted: (val) => _sendMessage(val, latestOrder.id),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.attach_file_outlined, color: Colors.grey),
+                                    onPressed: () {},
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () => _sendMessage(_messageController.text, latestOrder.id),
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF4F7FFF), Color(0xFF7BA7FF)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () => _sendMessage(_messageController.text),
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF4F7FFF), Color(0xFF7BA7FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
-              ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNoOrderView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline_rounded, size: 72, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'Belum Ada Pesanan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Anda belum melakukan pemesanan di ${widget.vendorName}. Silakan pesan makanan terlebih dahulu untuk memulai obrolan dengan penjual.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], height: 1.4),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -359,23 +416,6 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _typingDot(int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 600 + index * 200),
-      builder: (context, value, child) {
-        return Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.3 + value * 0.7),
-            shape: BoxShape.circle,
-          ),
-        );
-      },
     );
   }
 }

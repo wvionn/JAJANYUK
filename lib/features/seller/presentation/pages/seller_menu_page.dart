@@ -812,13 +812,8 @@ class _MenuFormSheetState extends ConsumerState<_MenuFormSheet> {
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   Switch(
-<<<<<<< HEAD
-                    value: _available,
-                    onChanged: (v) => setState(() => _available = v),
-=======
                     value: _isAvailable,
                     onChanged: (v) => setState(() => _isAvailable = v),
->>>>>>> 07f3ccc2fca1921d59a87706cb38589600a34faf
                     activeThumbColor: AppColors.success,
                   ),
                 ],

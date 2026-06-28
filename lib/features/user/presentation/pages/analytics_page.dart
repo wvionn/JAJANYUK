@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../providers/cart_provider.dart';
+import '../../../user/presentation/providers/cart_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class AnalyticsPage extends ConsumerStatefulWidget {
@@ -13,8 +13,9 @@ class AnalyticsPage extends ConsumerStatefulWidget {
 
 class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   DateTime _selectedDate = DateTime.now();
-  bool _isDailyView = true; // true = Daily, false = Monthly
-  bool _isCountMetric = true; // true = Jumlah Pembelian, false = Total Pengeluaran
+  // 0 = Harian, 1 = Mingguan, 2 = Bulanan
+  int _viewMode = 2;
+  bool _isCountMetric = true;
   int? _selectedBarIndex;
 
   final currencyFormatter = NumberFormat.currency(
@@ -35,19 +36,15 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
-          'Analisis Pembelian',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-        ),
+        title: const Text('Analisis Pembelian',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(orderHistoryProvider);
-            },
+            onPressed: () => ref.invalidate(orderHistoryProvider),
           )
         ],
       ),
@@ -64,27 +61,10 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           ),
         ),
         data: (orders) {
-          // Filter orders for the selected period
-          final filteredOrders = orders.where((order) {
-            if (_isDailyView) {
-              // Daily view filters by the selected month and year
-              return order.createdAt.month == _selectedDate.month &&
-                  order.createdAt.year == _selectedDate.year;
-            } else {
-              // Monthly view filters by the selected year
-              return order.createdAt.year == _selectedDate.year;
-            }
-          }).toList();
-
-          // Calculate summary statistics
-          double totalSpent = 0;
+          final filteredOrders = _filterOrders(orders);
+          double totalSpent = filteredOrders.fold(0.0, (sum, o) => sum + o.totalPrice);
           int totalTransactions = filteredOrders.length;
-          for (final order in filteredOrders) {
-            totalSpent += order.totalPrice;
-          }
-
-          // Build chart data
-          final List<ChartDataPoint> chartData = _generateChartData(filteredOrders);
+          final chartData = _generateChartData(orders);
 
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -92,20 +72,14 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Selector Section (Time & View Mode Toggle)
                 _buildSelectors(context),
                 const SizedBox(height: 20),
-
-                // 2. Summary Cards
                 _buildSummaryCards(totalSpent, totalTransactions),
                 const SizedBox(height: 24),
-
-                // 3. Chart Container
                 _buildChartSection(chartData),
                 const SizedBox(height: 24),
-
-                // 4. Detail Order List of selected timeframe
                 _buildDetailsSection(filteredOrders),
+                const SizedBox(height: 24),
               ],
             ),
           );
@@ -114,37 +88,83 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     );
   }
 
-  // Generate chart datapoints based on filters
-  List<ChartDataPoint> _generateChartData(List<dynamic> filteredOrders) {
+  List<dynamic> _filterOrders(List<dynamic> orders) {
+    return orders.where((order) {
+      final dt = (order.createdAt as DateTime).toLocal();
+      if (_viewMode == 0) {
+        // Harian: filter by exact date
+        return dt.year == _selectedDate.year &&
+            dt.month == _selectedDate.month &&
+            dt.day == _selectedDate.day;
+      } else if (_viewMode == 1) {
+        // Mingguan: filter by week in selected month
+        return dt.year == _selectedDate.year &&
+            dt.month == _selectedDate.month;
+      } else {
+        // Bulanan: filter by year
+        return dt.year == _selectedDate.year;
+      }
+    }).toList();
+  }
+
+  List<ChartDataPoint> _generateChartData(List<dynamic> allOrders) {
     final List<ChartDataPoint> data = [];
 
-    if (_isDailyView) {
-      // Days in the selected month
-      final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
-      for (int i = 1; i <= daysInMonth; i++) {
-        final dayOrders = filteredOrders.where((o) => o.createdAt.day == i).toList();
-        final double count = dayOrders.length.toDouble();
-        final double spent = dayOrders.fold(0.0, (sum, o) => sum + o.totalPrice);
+    if (_viewMode == 0) {
+      // Harian: tampilkan per jam (0-23)
+      final dayOrders = allOrders.where((o) {
+        final dt = o.createdAt as DateTime;
+        return dt.year == _selectedDate.year &&
+            dt.month == _selectedDate.month &&
+            dt.day == _selectedDate.day;
+      }).toList();
 
+      for (int h = 0; h < 24; h++) {
+        final hourOrders = dayOrders.where((o) => (o.createdAt as DateTime).hour == h).toList();
         data.add(ChartDataPoint(
-          label: i.toString(),
-          count: count,
-          spent: spent,
-          subtitle: '${i} ${_monthsName[_selectedDate.month - 1]}',
-          rawOrdersCount: dayOrders.length,
+          label: '$h',
+          count: hourOrders.length.toDouble(),
+          spent: hourOrders.fold(0.0, (sum, o) => sum + o.totalPrice),
+          subtitle: 'Jam $h:00 - ${h + 1}:00',
+          rawOrdersCount: hourOrders.length,
         ));
       }
-    } else {
-      // Months in the selected year
-      for (int i = 1; i <= 12; i++) {
-        final monthOrders = filteredOrders.where((o) => o.createdAt.month == i).toList();
-        final double count = monthOrders.length.toDouble();
-        final double spent = monthOrders.fold(0.0, (sum, o) => sum + o.totalPrice);
+    } else if (_viewMode == 1) {
+      // Mingguan: tampilkan per minggu dalam bulan
+      final monthOrders = allOrders.where((o) {
+        final dt = o.createdAt as DateTime;
+        return dt.year == _selectedDate.year && dt.month == _selectedDate.month;
+      }).toList();
 
+      final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
+      int weekNum = 1;
+      for (int startDay = 1; startDay <= daysInMonth; startDay += 7) {
+        final endDay = (startDay + 6).clamp(1, daysInMonth);
+        final weekOrders = monthOrders.where((o) {
+          final day = (o.createdAt as DateTime).day;
+          return day >= startDay && day <= endDay;
+        }).toList();
+        data.add(ChartDataPoint(
+          label: 'M$weekNum',
+          count: weekOrders.length.toDouble(),
+          spent: weekOrders.fold(0.0, (sum, o) => sum + o.totalPrice),
+          subtitle: 'Minggu $weekNum ($startDay-$endDay ${_monthsName[_selectedDate.month - 1]})',
+          rawOrdersCount: weekOrders.length,
+        ));
+        weekNum++;
+      }
+    } else {
+      // Bulanan: per bulan dalam tahun
+      final yearOrders = allOrders.where((o) =>
+          (o.createdAt as DateTime).year == _selectedDate.year).toList();
+
+      for (int i = 1; i <= 12; i++) {
+        final monthOrders = yearOrders.where((o) =>
+            (o.createdAt as DateTime).month == i).toList();
         data.add(ChartDataPoint(
           label: _monthsName[i - 1].substring(0, 3),
-          count: count,
-          spent: spent,
+          count: monthOrders.length.toDouble(),
+          spent: monthOrders.fold(0.0, (sum, o) => sum + o.totalPrice),
           subtitle: '${_monthsName[i - 1]} ${_selectedDate.year}',
           rawOrdersCount: monthOrders.length,
         ));
@@ -160,51 +180,22 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
-          // Timeframe Type: Daily / Monthly Toggle
+          // 3 mode toggle
           Row(
             children: [
-              Expanded(
-                child: _buildToggleButton(
-                  isActive: _isDailyView,
-                  label: 'Harian (Per Bulan)',
-                  icon: Icons.calendar_view_day,
-                  onTap: () {
-                    setState(() {
-                      _isDailyView = true;
-                      _selectedBarIndex = null;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildToggleButton(
-                  isActive: !_isDailyView,
-                  label: 'Bulanan (Per Tahun)',
-                  icon: Icons.calendar_view_month,
-                  onTap: () {
-                    setState(() {
-                      _isDailyView = false;
-                      _selectedBarIndex = null;
-                    });
-                  },
-                ),
-              ),
+              Expanded(child: _buildToggleButton(isActive: _viewMode == 0, label: 'Harian', icon: Icons.today, onTap: () => setState(() { _viewMode = 0; _selectedBarIndex = null; }))),
+              const SizedBox(width: 6),
+              Expanded(child: _buildToggleButton(isActive: _viewMode == 1, label: 'Mingguan', icon: Icons.view_week, onTap: () => setState(() { _viewMode = 1; _selectedBarIndex = null; }))),
+              const SizedBox(width: 6),
+              Expanded(child: _buildToggleButton(isActive: _viewMode == 2, label: 'Bulanan', icon: Icons.calendar_month, onTap: () => setState(() { _viewMode = 2; _selectedBarIndex = null; }))),
             ],
           ),
           const Divider(height: 24),
 
-          // Date / Period Picker trigger
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -212,29 +203,29 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isDailyView ? 'Periode Bulan' : 'Periode Tahun',
+                    _viewMode == 0 ? 'Tanggal' : _viewMode == 1 ? 'Bulan & Tahun' : 'Tahun',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _isDailyView
-                        ? '${_monthsName[_selectedDate.month - 1]} ${_selectedDate.year}'
-                        : '${_selectedDate.year}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    _viewMode == 0
+                        ? DateFormat('dd MMMM yyyy', 'id_ID').format(_selectedDate)
+                        : _viewMode == 1
+                            ? '${_monthsName[_selectedDate.month - 1]} ${_selectedDate.year}'
+                            : '${_selectedDate.year}',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               ElevatedButton.icon(
                 onPressed: () => _selectPeriod(context),
                 icon: const Icon(Icons.date_range, size: 18),
-                label: Text(_isDailyView ? 'Ubah Bulan' : 'Ubah Tahun'),
+                label: Text(_viewMode == 0 ? 'Ubah Tanggal' : _viewMode == 1 ? 'Ubah Bulan' : 'Ubah Tahun'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
@@ -244,41 +235,21 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     );
   }
 
-  Widget _buildToggleButton({
-    required bool isActive,
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildToggleButton({required bool isActive, required String label, required IconData icon, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive ? AppColors.primary : Colors.grey[300]!,
-            width: 1,
-          ),
+          border: Border.all(color: isActive ? AppColors.primary : Colors.grey[300]!, width: 1),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isActive ? AppColors.primary : Colors.grey[600],
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? AppColors.primary : Colors.grey[700],
-              ),
-            ),
+            Icon(icon, size: 16, color: isActive ? AppColors.primary : Colors.grey[600]),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: isActive ? FontWeight.bold : FontWeight.normal, color: isActive ? AppColors.primary : Colors.grey[700])),
           ],
         ),
       ),
@@ -288,80 +259,35 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   Widget _buildSummaryCards(double totalSpent, int totalTransactions) {
     return Row(
       children: [
-        // Total Spent Card
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.account_balance_wallet, color: Colors.orange, size: 20),
-                ),
-                const SizedBox(height: 12),
-                const Text('Total Belanja', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 4),
-                Text(
-                  currencyFormatter.format(totalSpent),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.account_balance_wallet, color: Colors.orange, size: 20)),
+              const SizedBox(height: 12),
+              const Text('Total Belanja', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 4),
+              Text(currencyFormatter.format(totalSpent), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ]),
           ),
         ),
         const SizedBox(width: 12),
-
-        // Total Transactions Card
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.shopping_bag, color: Colors.green, size: 20),
-                ),
-                const SizedBox(height: 12),
-                const Text('Total Pembelian', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 4),
-                Text(
-                  '$totalTransactions Transaksi',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.shopping_bag, color: Colors.green, size: 20)),
+              const SizedBox(height: 12),
+              const Text('Total Pembelian', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 4),
+              Text('$totalTransactions Transaksi', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ]),
           ),
         ),
       ],
@@ -369,91 +295,58 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   }
 
   Widget _buildChartSection(List<ChartDataPoint> chartData) {
-    // Find max value in data to scale the heights
-    double maxValue = 0;
-    for (final pt in chartData) {
-      final double val = _isCountMetric ? pt.count : pt.spent;
-      if (val > maxValue) maxValue = val;
-    }
+    double maxValue = chartData.fold(0.0, (max, pt) {
+      final val = _isCountMetric ? pt.count : pt.spent;
+      return val > max ? val : max;
+    });
     if (maxValue == 0) maxValue = 1.0;
+
+    final hasData = chartData.any((pt) => (_isCountMetric ? pt.count : pt.spent) > 0);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Metric type toggler & Title
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _isCountMetric ? 'Grafik Jumlah Pembelian' : 'Grafik Total Belanja',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  _isCountMetric ? 'Grafik Jumlah Pembelian' : 'Grafik Total Belanja',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
-              // Mini dropdown/toggle for metric
               PopupMenuButton<bool>(
                 initialValue: _isCountMetric,
-                onSelected: (val) {
-                  setState(() {
-                    _isCountMetric = val;
-                    _selectedBarIndex = null;
-                  });
-                },
+                onSelected: (val) => setState(() { _isCountMetric = val; _selectedBarIndex = null; }),
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: true,
-                    child: Text('Jumlah Transaksi (Kali)'),
-                  ),
-                  const PopupMenuItem(
-                    value: false,
-                    child: Text('Total Pengeluaran (Rupiah)'),
-                  ),
+                  const PopupMenuItem(value: true, child: Text('Jumlah Transaksi')),
+                  const PopupMenuItem(value: false, child: Text('Total Pengeluaran')),
                 ],
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _isCountMetric ? 'Transaksi' : 'Pengeluaran',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                      const Icon(Icons.arrow_drop_down, size: 16),
-                    ],
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                  child: Row(children: [
+                    Text(_isCountMetric ? 'Transaksi' : 'Pengeluaran', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.arrow_drop_down, size: 16),
+                  ]),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Interactive Graph Component
+          const SizedBox(height: 16),
           SizedBox(
-            height: 220,
-            child: chartData.isEmpty || (chartData.every((element) => (_isCountMetric ? element.count : element.spent) == 0))
-                ? const Center(
-                    child: Text(
-                      'Tidak ada data pembelian pada periode ini.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
+            height: 300,
+            child: !hasData
+                ? const Center(child: Text('Tidak ada data pada periode ini.', style: TextStyle(color: Colors.grey)))
                 : Row(
                     children: [
-                      // Y Axis scale indicators
                       Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -463,12 +356,10 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                           Text(_formatYLabel(maxValue * 0.5), style: const TextStyle(fontSize: 10, color: Colors.grey)),
                           Text(_formatYLabel(maxValue * 0.25), style: const TextStyle(fontSize: 10, color: Colors.grey)),
                           const Text('0', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                          const SizedBox(height: 18), // Placeholder to align with X labels
+                          const SizedBox(height: 40),
                         ],
                       ),
                       const SizedBox(width: 8),
-
-                      // Chart bars area
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, constraints) {
@@ -480,51 +371,31 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                                   final pt = chartData[index];
                                   final double value = _isCountMetric ? pt.count : pt.spent;
                                   final isSelected = _selectedBarIndex == index;
-                                  final double percentage = value / maxValue;
-                                  // Max height is constraint height minus labels
-                                  final double barMaxHeight = constraints.maxHeight - 32;
-                                  final double barHeight = (percentage * barMaxHeight).clamp(4.0, barMaxHeight);
+                                  final double barMaxHeight = constraints.maxHeight - 50;
+                                  final double barHeight = value == 0 ? 2 : (value / maxValue * barMaxHeight).clamp(2.0, barMaxHeight);
 
                                   return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        if (_selectedBarIndex == index) {
-                                          _selectedBarIndex = null;
-                                        } else {
-                                          _selectedBarIndex = index;
-                                        }
-                                      });
-                                    },
+                                    onTap: () => setState(() {
+                                      _selectedBarIndex = _selectedBarIndex == index ? null : index;
+                                    }),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6),
                                       color: Colors.transparent,
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.end,
                                         children: [
-                                          // Tooltip if selected
                                           if (isSelected)
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                               margin: const EdgeInsets.only(bottom: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black87,
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
+                                              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4)),
                                               child: Text(
-                                                _isCountMetric
-                                                    ? '${value.toInt()} Transaksi'
-                                                    : currencyFormatter.format(value),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                                _isCountMetric ? '${value.toInt()} Transaksi' : currencyFormatter.format(value),
+                                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                                               ),
                                             )
                                           else
-                                            const SizedBox(height: 18),
-
-                                          // Bar
+                                            const SizedBox(height: 20),
                                           AnimatedContainer(
                                             duration: const Duration(milliseconds: 300),
                                             width: 14,
@@ -540,17 +411,8 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                           ),
-                                          const SizedBox(height: 6),
-
-                                          // Label
-                                          Text(
-                                            pt.label,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                              color: isSelected ? AppColors.primary : Colors.grey[600],
-                                            ),
-                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(pt.label, style: TextStyle(fontSize: 9, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? AppColors.primary : Colors.grey[600])),
                                         ],
                                       ),
                                     ),
@@ -565,21 +427,19 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   ),
           ),
           if (_selectedBarIndex != null && _selectedBarIndex! < chartData.length) ...[
-            const Divider(height: 24),
+            const Divider(height: 20),
             Row(
               children: [
                 const Icon(Icons.info_outline, size: 16, color: Colors.blue),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Detail ${chartData[_selectedBarIndex!].subtitle}: '
-                    '${chartData[_selectedBarIndex!].rawOrdersCount} transaksi '
-                    '(total ${currencyFormatter.format(chartData[_selectedBarIndex!].spent)})',
+                    'Detail ${chartData[_selectedBarIndex!].subtitle}: ${chartData[_selectedBarIndex!].rawOrdersCount} transaksi (${currencyFormatter.format(chartData[_selectedBarIndex!].spent)})',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ],
       ),
@@ -587,16 +447,10 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   }
 
   String _formatYLabel(double val) {
-    if (_isCountMetric) {
-      return val.toInt().toString();
-    } else {
-      if (val >= 1000000) {
-        return '${(val / 1000000).toStringAsFixed(1)}M';
-      } else if (val >= 1000) {
-        return '${(val / 1000).toStringAsFixed(0)}K';
-      }
-      return val.toInt().toString();
-    }
+    if (_isCountMetric) return val.toInt().toString();
+    if (val >= 1000000) return '${(val / 1000000).toStringAsFixed(1)}M';
+    if (val >= 1000) return '${(val / 1000).toStringAsFixed(0)}K';
+    return val.toInt().toString();
   }
 
   Widget _buildDetailsSection(List<dynamic> filteredOrders) {
@@ -606,14 +460,8 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Detail Pesanan Periode Ini',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              '${filteredOrders.length} Pesanan',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-            ),
+            const Text('Detail Pesanan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('${filteredOrders.length} Pesanan', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
           ],
         ),
         const SizedBox(height: 12),
@@ -621,22 +469,14 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30),
             width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Text(
-                'Tidak ada transaksi.',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: const Center(child: Text('Tidak ada transaksi.', style: TextStyle(color: Colors.grey))),
           )
         else
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredOrders.length > 5 ? 5 : filteredOrders.length,
+            itemCount: filteredOrders.length > 10 ? 10 : filteredOrders.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final order = filteredOrders[index];
@@ -653,205 +493,130 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Pesanan #${order.id.substring(0, 8)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
+                        Text('Pesanan #${order.id.substring(0, 8)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 4),
-                        Text(
-                          DateFormat('dd MMM yyyy, HH:mm').format(order.createdAt),
-                          style: const TextStyle(color: Colors.grey, fontSize: 11),
-                        ),
+                        Text(DateFormat('dd MMM yyyy, HH:mm').format(order.createdAt), style: const TextStyle(color: Colors.grey, fontSize: 11)),
                       ],
                     ),
-                    Text(
-                      currencyFormatter.format(order.totalPrice),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(currencyFormatter.format(order.totalPrice),
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13)),
                   ],
                 ),
               );
             },
           ),
-        if (filteredOrders.length > 5) ...[
+        if (filteredOrders.length > 10) ...[
           const SizedBox(height: 8),
-          Center(
-            child: Text(
-              '*Menampilkan 5 pesanan terakhir',
-              style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic),
-            ),
-          ),
-        ]
+          Center(child: Text('*Menampilkan 10 pesanan terakhir', style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic))),
+        ],
       ],
     );
   }
 
-  // Show dialog to choose Month/Year or Year depending on view mode
   Future<void> _selectPeriod(BuildContext context) async {
-    if (_isDailyView) {
-      // Choose Month and Year
+    if (_viewMode == 0) {
+      // Pilih tanggal spesifik
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+      );
+      if (picked != null) {
+        setState(() { _selectedDate = picked; _selectedBarIndex = null; });
+      }
+    } else if (_viewMode == 1) {
+      // Pilih bulan & tahun
       int tempYear = _selectedDate.year;
       int tempMonth = _selectedDate.month;
 
       await showDialog(
         context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Pilih Bulan & Tahun'),
-            content: StatefulBuilder(
-              builder: (context, setDialogState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
+        builder: (context) => AlertDialog(
+          title: const Text('Pilih Bulan & Tahun'),
+          content: StatefulBuilder(
+            builder: (context, setDialogState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Year selection row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Tahun:', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: () {
-                                setDialogState(() => tempYear--);
-                              },
-                            ),
-                            Text('$tempYear', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () {
-                                setDialogState(() => tempYear++);
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 8),
-
-                    // Months grid
-                    SizedBox(
-                      width: 280,
-                      height: 180,
-                      child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 2,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
-                        itemCount: 12,
-                        itemBuilder: (context, index) {
-                          final isSelected = tempMonth == (index + 1);
-                          return GestureDetector(
-                            onTap: () {
-                              setDialogState(() {
-                                tempMonth = index + 1;
-                              });
-                            },
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppColors.primary : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                _monthsName[index].substring(0, 3),
-                                style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.black,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    const Text('Tahun:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Row(children: [
+                      IconButton(icon: const Icon(Icons.remove), onPressed: () => setDialogState(() => tempYear--)),
+                      Text('$tempYear', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.add), onPressed: () => setDialogState(() => tempYear++)),
+                    ]),
                   ],
-                );
-              },
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 280,
+                  height: 180,
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 2, crossAxisSpacing: 8, mainAxisSpacing: 8),
+                    itemCount: 12,
+                    itemBuilder: (context, index) {
+                      final isSelected = tempMonth == (index + 1);
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => tempMonth = index + 1),
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: isSelected ? AppColors.primary : Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                          child: Text(_monthsName[index].substring(0, 3), style: TextStyle(color: isSelected ? Colors.white : Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedDate = DateTime(tempYear, tempMonth);
-                    _selectedBarIndex = null;
-                  });
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                child: const Text('Pilih', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          );
-        },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () {
+                setState(() { _selectedDate = DateTime(tempYear, tempMonth); _selectedBarIndex = null; });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Pilih', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       );
     } else {
-      // Choose Year only
+      // Pilih tahun
       int tempYear = _selectedDate.year;
-
       await showDialog(
         context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Pilih Tahun'),
-            content: StatefulBuilder(
-              builder: (context, setDialogState) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove),
-                      onPressed: () {
-                        setDialogState(() => tempYear--);
-                      },
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      '$tempYear',
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () {
-                        setDialogState(() => tempYear++);
-                      },
-                    ),
-                  ],
-                );
-              },
+        builder: (context) => AlertDialog(
+          title: const Text('Pilih Tahun'),
+          content: StatefulBuilder(
+            builder: (context, setDialogState) => Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(icon: const Icon(Icons.remove), onPressed: () => setDialogState(() => tempYear--)),
+                const SizedBox(width: 16),
+                Text('$tempYear', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 16),
+                IconButton(icon: const Icon(Icons.add), onPressed: () => setDialogState(() => tempYear++)),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedDate = DateTime(tempYear, _selectedDate.month);
-                    _selectedBarIndex = null;
-                  });
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                child: const Text('Pilih', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          );
-        },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () {
+                setState(() { _selectedDate = DateTime(tempYear, _selectedDate.month); _selectedBarIndex = null; });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Pilih', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       );
     }
   }
