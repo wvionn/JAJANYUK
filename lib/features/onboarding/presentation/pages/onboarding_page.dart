@@ -21,28 +21,28 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       title: 'Selamat Datang di Kantin Online Kampus',
       description:
           'Pesan makanan favorit kamu dengan mudah dan cepat langsung dari kampus',
-      icon: Icons.restaurant_menu,
+      image: 'assets/onboarding/delivery.png',
     ),
     OnboardingData(
       title: 'Pengantaran cepat di lingkungan kampus',
       description: 'Dapatkan pesanan kamu dengan cepat tanpa harus antri',
-      icon: Icons.delivery_dining,
+      image: 'assets/onboarding/pesan-antar.png',
     ),
     OnboardingData(
       title: 'Dari mahasiswa, untuk mahasiswa',
       description:
           'Platform yang dibuat khusus untuk memudahkan mahasiswa memesan makanan',
-      icon: Icons.people,
+      image: 'assets/onboarding/mahasiswa.png',
     ),
     OnboardingData(
       title: 'Makan sesuai caramu',
       description: 'Pilih menu favorit, bayar dengan mudah, dan nikmati!',
-      icon: Icons.fastfood,
+      image: 'assets/onboarding/warung_kantin.jpg',
     ),
     OnboardingData(
       title: 'Makan di kampus jadi lebih mudah',
       description: 'Hemat waktu dan tenaga dengan pesan online',
-      icon: Icons.school,
+      image: 'assets/onboarding/pamflet.jpg',
     ),
   ];
 
@@ -109,6 +109,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Widget _buildPage(OnboardingData data) {
+    final isPngIcon = data.image.endsWith('.png') && !data.image.contains('Gemini');
+
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
@@ -119,9 +121,18 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             height: 200,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: Icon(data.icon, size: 100, color: Colors.white),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: EdgeInsets.all(isPngIcon ? 24 : 0),
+                child: Image.asset(
+                  data.image,
+                  fit: isPngIcon ? BoxFit.contain : BoxFit.cover,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 48),
           Text(
@@ -168,11 +179,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 class OnboardingData {
   final String title;
   final String description;
-  final IconData icon;
+  final String image;
 
   OnboardingData({
     required this.title,
     required this.description,
-    required this.icon,
+    required this.image,
   });
 }
