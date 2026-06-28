@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../domain/entities/transaction_report_entity.dart';
 import '../providers/admin_provider.dart';
 import '../widgets/admin_stat_card.dart';
 
@@ -13,6 +15,7 @@ class AdminDashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(platformStatsProvider);
+    final reportState = ref.watch(transactionReportNotifierProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -22,7 +25,10 @@ class AdminDashboardPage extends ConsumerWidget {
             _buildHeader(context, ref),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => ref.refresh(platformStatsProvider.future),
+                onRefresh: () async {
+                  ref.invalidate(platformStatsProvider);
+                  await ref.read(transactionReportNotifierProvider.notifier).loadReports();
+                },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(20),
@@ -81,6 +87,25 @@ class AdminDashboardPage extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 28),
+
+                      // Platform Sales Chart
+                      const Text(
+                        'Tren Penjualan Platform',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (!reportState.isLoading)
+                        AdminDashboardCharts(reports: reportState.reports)
+                      else
+                        const SizedBox(
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
                       const SizedBox(height: 28),
 
                       // Menu Section
@@ -368,4 +393,535 @@ class _AdminMenu {
     required this.color,
     required this.route,
   });
+}
+
+class AdminDashboardCharts extends StatefulWidget {
+  final List<TransactionReportEntity> reports;
+
+  const AdminDashboardCharts({super.key, required this.reports});
+
+  @override
+  State<AdminDashboardCharts> createState() => _AdminDashboardChartsState();
+}
+
+class _AdminDashboardChartsState extends State<AdminDashboardCharts>
+    with SingleTickerProviderStateMixin {
+  late PageController _pageController;
+  late AnimationController _animController;
+  late Animation<double> _animation;
+
+  int _currentPage = 0;
+  String _selectedRange = '7days';
+  DateTimeRange? _customDateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _animation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOutCubic,
+    );
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _triggerAnimation() {
+    _animController.reset();
+    _animController.forward();
+  }
+
+  Future<void> _selectCustomRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2025),
+      lastDate: DateTime.now(),
+      initialDateRange: _customDateRange ??
+          DateTimeRange(
+            start: DateTime.now().subtract(const Duration(days: 7)),
+            end: DateTime.now(),
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedRange = 'custom';
+        _customDateRange = picked;
+      });
+      _triggerAnimation();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final DateTime now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    if (_selectedRange == '30days') {
+      startDate = now.subtract(const Duration(days: 29));
+      startDate = DateTime(startDate.year, startDate.month, startDate.day);
+    } else if (_selectedRange == 'custom' && _customDateRange != null) {
+      startDate = DateTime(_customDateRange!.start.year, _customDateRange!.start.month, _customDateRange!.start.day);
+      endDate = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+    } else {
+      startDate = now.subtract(const Duration(days: 6));
+      startDate = DateTime(startDate.year, startDate.month, startDate.day);
+    }
+
+    final int daysCount = endDate.difference(startDate).inDays + 1;
+    final List<DateTime> dates = List.generate(
+      daysCount,
+      (index) => startDate.add(Duration(days: index)),
+    );
+
+    final totalData = <String, int>{};
+    final qrisData = <String, int>{};
+    final cashData = <String, int>{};
+
+    for (final d in dates) {
+      final key = DateFormat('yyyy-MM-dd').format(d);
+      totalData[key] = 0;
+      qrisData[key] = 0;
+      cashData[key] = 0;
+    }
+
+    for (final r in widget.reports) {
+      final key = DateFormat('yyyy-MM-dd').format(r.createdAt.toLocal());
+      if (totalData.containsKey(key)) {
+        totalData[key] = totalData[key]! + 1;
+        if (r.paymentMethod.toLowerCase() == 'qris') {
+          qrisData[key] = qrisData[key]! + 1;
+        } else {
+          cashData[key] = cashData[key]! + 1;
+        }
+      }
+    }
+
+    int maxVal = 5;
+    if (_currentPage == 0) {
+      for (final val in totalData.values) {
+        if (val > maxVal) maxVal = val;
+      }
+    } else {
+      for (final val in qrisData.values) {
+        if (val > maxVal) maxVal = val;
+      }
+      for (final val in cashData.values) {
+        if (val > maxVal) maxVal = val;
+      }
+    }
+    maxVal = ((maxVal + 4) ~/ 5) * 5;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildRangeChip('7 Hari', '7days'),
+              const SizedBox(width: 8),
+              _buildRangeChip('30 Hari', '30days'),
+              const SizedBox(width: 8),
+              _buildRangeChip(
+                _selectedRange == 'custom' && _customDateRange != null
+                    ? '${DateFormat('dd/MM').format(_customDateRange!.start)}-${DateFormat('dd/MM').format(_customDateRange!.end)}'
+                    : 'Kustom',
+                'custom',
+                onTap: _selectCustomRange,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          SizedBox(
+            height: 200,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+                _triggerAnimation();
+              },
+              children: [
+                _buildChartSlide(
+                  title: 'Total Transaksi Platform',
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, _) => CustomPaint(
+                      painter: AdminChartPainter(
+                        dates: dates,
+                        singleData: totalData,
+                        maxVal: maxVal,
+                        animationValue: _animation.value,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildChartSlide(
+                  title: 'Metode Pembayaran Platform',
+                  legend: Row(
+                    children: [
+                      _legendItem('QRIS', Colors.blue),
+                      const SizedBox(width: 10),
+                      _legendItem('Tunai', Colors.orange),
+                    ],
+                  ),
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, _) => CustomPaint(
+                      painter: AdminChartPainter(
+                        dates: dates,
+                        qrisData: qrisData,
+                        cashData: cashData,
+                        maxVal: maxVal,
+                        animationValue: _animation.value,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(2, (index) => _buildIndicatorDot(index)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRangeChip(String label, String value, {VoidCallback? onTap}) {
+    final isSelected = _selectedRange == value;
+    return GestureDetector(
+      onTap: onTap ?? () {
+        if (_selectedRange != value) {
+          setState(() {
+            _selectedRange = value;
+          });
+          _triggerAnimation();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.3) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartSlide({
+    required String title,
+    Widget? legend,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if (legend != null) legend,
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _legendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIndicatorDot(int index) {
+    final isActive = _currentPage == index;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      width: isActive ? 14 : 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: isActive ? AppColors.primary : Colors.grey[300],
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+}
+
+class AdminChartPainter extends CustomPainter {
+  final List<DateTime> dates;
+  final Map<String, int>? singleData;
+  final Map<String, int>? qrisData;
+  final Map<String, int>? cashData;
+  final int maxVal;
+  final double animationValue;
+
+  AdminChartPainter({
+    required this.dates,
+    this.singleData,
+    this.qrisData,
+    this.cashData,
+    required this.maxVal,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.grey[150]!
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    const double paddingLeft = 20.0;
+    const double paddingBottom = 20.0;
+    const double paddingTop = 10.0;
+    const double paddingRight = 10.0;
+
+    final double chartWidth = size.width - paddingLeft - paddingRight;
+    final double chartHeight = size.height - paddingTop - paddingBottom;
+
+    // Draw horizontal grid lines and Y axis labels
+    final int divisions = 4;
+    for (int i = 0; i <= divisions; i++) {
+      final double y = paddingTop + chartHeight - (i * chartHeight / divisions);
+      canvas.drawLine(
+        Offset(paddingLeft, y),
+        Offset(size.width - paddingRight, y),
+        gridPaint,
+      );
+
+      final int value = (i * maxVal / divisions).round();
+      textPainter.text = TextSpan(
+        text: value.toString(),
+        style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(paddingLeft - textPainter.width - 6, y - textPainter.height / 2),
+      );
+    }
+
+    final double stepX = chartWidth / (dates.length - 1);
+    for (int i = 0; i < dates.length; i++) {
+      final double x = paddingLeft + (i * stepX);
+      
+      canvas.drawLine(
+        Offset(x, paddingTop),
+        Offset(x, paddingTop + chartHeight),
+        gridPaint,
+      );
+
+      bool shouldDrawLabel = false;
+      if (dates.length <= 7) {
+        shouldDrawLabel = true;
+      } else if (dates.length <= 15) {
+        shouldDrawLabel = i % 2 == 0;
+      } else {
+        shouldDrawLabel = i % 5 == 0 || i == dates.length - 1;
+      }
+
+      if (shouldDrawLabel) {
+        final date = dates[i];
+        textPainter.text = TextSpan(
+          text: DateFormat('dd/MM').format(date),
+          style: TextStyle(color: Colors.grey[500], fontSize: 8, fontWeight: FontWeight.w500),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(x - textPainter.width / 2, paddingTop + chartHeight + 6),
+        );
+      }
+    }
+
+    if (singleData != null) {
+      _drawLine(
+        canvas,
+        stepX,
+        paddingLeft,
+        paddingTop,
+        chartHeight,
+        singleData!,
+        AppColors.primary,
+        AppColors.primary.withValues(alpha: 0.08),
+      );
+    } else {
+      if (qrisData != null) {
+        _drawLine(
+          canvas,
+          stepX,
+          paddingLeft,
+          paddingTop,
+          chartHeight,
+          qrisData!,
+          Colors.blue,
+          Colors.blue.withValues(alpha: 0.08),
+        );
+      }
+      if (cashData != null) {
+        _drawLine(
+          canvas,
+          stepX,
+          paddingLeft,
+          paddingTop,
+          chartHeight,
+          cashData!,
+          Colors.orange,
+          Colors.orange.withValues(alpha: 0.08),
+        );
+      }
+    }
+  }
+
+  void _drawLine(
+    Canvas canvas,
+    double stepX,
+    double paddingLeft,
+    double paddingTop,
+    double chartHeight,
+    Map<String, int> data,
+    Color strokeColor,
+    Color fillColor,
+  ) {
+    final path = Path();
+    final fillPath = Path();
+    final List<Offset> points = [];
+
+    for (int i = 0; i < dates.length; i++) {
+      final date = dates[i];
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final val = data[dateStr] ?? 0;
+      final double x = paddingLeft + (i * stepX);
+      final double y = paddingTop + chartHeight - (val * chartHeight / maxVal) * animationValue;
+      points.add(Offset(x, y));
+
+      if (i == 0) {
+        path.moveTo(x, y);
+        fillPath.moveTo(x, paddingTop + chartHeight);
+        fillPath.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+        fillPath.lineTo(x, y);
+      }
+    }
+    fillPath.lineTo(points.last.dx, paddingTop + chartHeight);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(fillPath, fillPaint);
+
+    final linePaint = Paint()
+      ..color = strokeColor
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+    canvas.drawPath(path, linePaint);
+
+    final dotOuterPaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.fill;
+    final dotInnerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (final p in points) {
+      canvas.drawCircle(p, 3.5, dotOuterPaint);
+      canvas.drawCircle(p, 1.5, dotInnerPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant AdminChartPainter oldDelegate) {
+    return oldDelegate.dates != dates ||
+        oldDelegate.singleData != singleData ||
+        oldDelegate.qrisData != qrisData ||
+        oldDelegate.cashData != cashData ||
+        oldDelegate.maxVal != maxVal ||
+        oldDelegate.animationValue != animationValue;
+  }
 }
