@@ -43,12 +43,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       (failure) {
         if (mounted) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Login gagal: ${failure.message}'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          _showErrorDialog(_mapAuthError(failure.message));
         }
       },
       (user) {
@@ -75,6 +70,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           }
         }
       },
+    );
+  }
+
+  String _mapAuthError(String message) {
+    final msg = message.toLowerCase();
+    if (msg.contains('invalid credentials') || msg.contains('invalid_credentials')) {
+      return 'Email atau password salah. Silakan coba lagi.';
+    }
+    if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+      return 'Email Anda belum dikonfirmasi. Silakan periksa kotak masuk email Anda untuk verifikasi.';
+    }
+    if (msg.contains('network') || msg.contains('socket') || msg.contains('connection')) {
+      return 'Koneksi internet bermasalah. Silakan periksa jaringan Anda dan coba lagi.';
+    }
+    return 'Gagal masuk. Silakan periksa kembali data Anda.';
+  }
+
+  void _showErrorDialog(String friendlyMessage) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text(
+              'Login Gagal',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          friendlyMessage,
+          style: const TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -192,7 +230,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        "Belum punya akun? ",
+                        "Belum punya akun?",
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       TextButton(

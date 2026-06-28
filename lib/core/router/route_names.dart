@@ -33,4 +33,5 @@ class RouteNames {
   static const String sellerOrders = '/seller/orders';
   static const String sellerChat = '/seller/orders/:orderId/chat';
   static const String sellerProfile = '/seller/profile';
+  static const String sellerReports = '/seller/reports';
 }

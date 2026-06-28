@@ -277,18 +277,18 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
       try {
         ordersRes =
-            await supabaseClient.from('orders').select('id, total_amount');
+            await supabaseClient.from('orders').select('id, total_price');
         pendingRes = await supabaseClient
             .from('orders')
             .select('id')
-            .eq('status', 'pending');
+            .eq('order_status', 'pending');
         completedRes = await supabaseClient
             .from('orders')
-            .select('id, total_amount')
-            .eq('status', 'completed');
+            .select('id, total_price')
+            .eq('order_status', 'completed');
         totalRevenue = completedRes.fold(
           0.0,
-          (sum, o) => sum + ((o['total_amount'] as num?)?.toDouble() ?? 0.0),
+          (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0),
         );
       } catch (_) {
         // orders table might not exist yet
@@ -317,21 +317,23 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     try {
       var query = supabaseClient.from('orders').select(
         '''
-        id, total_amount, status, payment_method, created_at,
-        buyer:users!orders_buyer_id_fkey(full_name, email),
-        seller:users!orders_seller_id_fkey(full_name),
-        order_items(product_name, quantity, price)
+        id, total_price, order_status, created_at,
+        buyer:users!orders_customer_id_fkey(name, full_name, email),
+        vendor:vendors(name),
+        order_items(id, quantity, price, subtotal, menus(name)),
+        transactions(payment_method)
         ''',
       );
 
       if (status != null && status != 'all') {
-        query = query.eq('status', status);
+        query = query.eq('order_status', status);
       }
       if (startDate != null) {
         query = query.gte('created_at', startDate.toIso8601String());
       }
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+        query = query.lte('created_at', endOfDay.toIso8601String());
       }
 
       final response = await query.order('created_at', ascending: false);

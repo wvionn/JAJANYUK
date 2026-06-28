@@ -21,6 +21,8 @@ import '../../features/seller/presentation/pages/seller_dashboard_page.dart';
 import '../../features/seller/presentation/pages/seller_menu_page.dart';
 import '../../features/seller/presentation/pages/seller_orders_page.dart';
 import '../../features/seller/presentation/pages/seller_chat_page.dart';
+import '../../features/seller/presentation/pages/seller_profile_page.dart';
+import '../../features/seller/presentation/pages/seller_reports_page.dart';
 import '../widgets/main_shell.dart';
 import 'route_names.dart';
 
@@ -139,6 +141,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['orderId']!;
           return SellerChatPage(orderId: orderId);
         },
+      ),
+      GoRoute(
+        path: RouteNames.sellerProfile,
+        name: RouteNames.sellerProfile,
+        builder: (context, state) => const SellerProfilePage(),
+      ),
+      GoRoute(
+        path: RouteNames.sellerReports,
+        name: RouteNames.sellerReports,
+        builder: (context, state) => const SellerReportsPage(),
       ),
     ],
     errorBuilder: (context, state) =>

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/transaction_report_entity.dart';
 import '../providers/admin_provider.dart';
@@ -41,6 +41,8 @@ class AdminTransactionsPage extends ConsumerWidget {
           // Stats row
           if (!state.isLoading && state.reports.isNotEmpty)
             _buildSummaryBar(state.reports),
+
+          const SizedBox(height: 8),
 
           // List
           Expanded(
@@ -677,3 +679,4 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
     );
   }
 }
+

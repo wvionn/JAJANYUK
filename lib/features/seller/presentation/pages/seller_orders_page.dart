@@ -18,7 +18,7 @@ class SellerOrdersPage extends ConsumerWidget {
       {'label': 'Semua', 'value': 'all'},
       {'label': 'Menunggu', 'value': 'pending'},
       {'label': 'Diproses', 'value': 'processing'},
-      {'label': 'Siap', 'value': 'ready'},
+      {'label': 'Siap Ambil', 'value': 'ready'},
       {'label': 'Selesai', 'value': 'completed'},
       {'label': 'Dibatalkan', 'value': 'cancelled'},
     ];
@@ -58,7 +58,7 @@ class SellerOrdersPage extends ConsumerWidget {
                       labelStyle: TextStyle(
                         color: isSelected ? AppColors.secondary : Colors.white,
                         fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                         fontSize: 12,
                       ),
                       checkmarkColor: AppColors.secondary,
@@ -128,7 +128,7 @@ class SellerOrdersPage extends ConsumerWidget {
               filter == 'all'
                   ? 'Belum ada pesanan'
                   : 'Tidak ada pesanan berstatus ini',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -150,21 +150,23 @@ class _OrderCard extends ConsumerWidget {
     final formatter =
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final timeFormatter = DateFormat('dd MMM, HH:mm');
-    final statusColor = _statusColor(order.status);
-    final statusLabel = _statusLabel(order.status);
+    final statusColor = _statusColor(order.orderStatus);
+    final statusLabel = _statusLabel(order.orderStatus);
+
+    final showCancel = order.orderStatus == 'pending' || order.orderStatus == 'processing' || order.orderStatus == 'ready';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: order.status == 'pending'
+        borderRadius: BorderRadius.circular(16),
+        border: order.orderStatus == 'pending'
             ? Border.all(
                 color: AppColors.warning.withValues(alpha: 0.5), width: 1.5)
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -173,14 +175,14 @@ class _OrderCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header: buyer info, time, status badge
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: AppColors.secondary.withValues(alpha: 0.12),
+                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
                   child: Text(
                     (order.buyerName?.isNotEmpty == true
                             ? order.buyerName![0]
@@ -200,8 +202,8 @@ class _OrderCard extends ConsumerWidget {
                       Text(
                         order.buyerName ?? 'Pembeli',
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                       Text(
@@ -221,28 +223,29 @@ class _OrderCard extends ConsumerWidget {
 
           const Divider(height: 1, indent: 16, endIndent: 16),
 
-          // Items
+          // Items List & Catatan
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...order.items.take(2).map((item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                ...order.items.map((item) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
                       child: Row(
                         children: [
                           Text(
                             '${item.quantity}x',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               item.menuItemName ?? 'Menu',
-                              style: const TextStyle(fontSize: 12),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                             ),
                           ),
                           Text(
@@ -255,55 +258,65 @@ class _OrderCard extends ConsumerWidget {
                         ],
                       ),
                     )),
-                if (order.items.length > 2)
-                  Text(
-                    '+${order.items.length - 2} item lainnya',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                if (order.notes?.isNotEmpty == true)
+                if (order.note?.isNotEmpty == true)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: AppColors.warning.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.15)),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(Icons.sticky_note_2_outlined,
-                            size: 14, color: AppColors.warning),
-                        const SizedBox(width: 6),
+                            size: 16, color: AppColors.warning),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            order.notes!,
+                            'Catatan: ${order.note!}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary,
+                              height: 1.3,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.payment_rounded, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Pembayaran: ${order.paymentStatus.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 11, 
+                        fontWeight: FontWeight.bold,
+                        color: order.paymentStatus == 'paid' ? AppColors.success : AppColors.warning
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
 
           const Divider(height: 1, indent: 16, endIndent: 16),
 
-          // Footer - total & actions
+          // Footer: Price & Action buttons
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: Row(
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Total',
+                      'Total Harga',
                       style: TextStyle(
                           fontSize: 11, color: AppColors.textSecondary),
                     ),
@@ -336,24 +349,34 @@ class _OrderCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Update status button
-                if (_nextStatus(order.status) != null)
+                
+                // Cancel/Dibatalkan action
+                if (showCancel)
+                  IconButton(
+                    onPressed: () => _confirmCancel(context, ref),
+                    icon: const Icon(Icons.cancel_outlined, color: AppColors.error),
+                    tooltip: 'Batalkan Pesanan',
+                  ),
+                  
+                // Flow Action (Terima -> Siap -> Selesai)
+                if (_nextStatus(order.orderStatus) != null)
                   ElevatedButton(
-                    onPressed: () => _updateStatus(context, ref),
+                    onPressed: () => _confirmUpdateStatus(context, ref),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: statusColor,
+                      backgroundColor: _statusColor(order.orderStatus),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                          horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      elevation: 0,
                     ),
                     child: Text(
-                      _nextStatusLabel(order.status),
+                      _nextStatusLabel(order.orderStatus),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -377,7 +400,7 @@ class _OrderCard extends ConsumerWidget {
   String _nextStatusLabel(String current) {
     const labels = {
       'pending': 'Terima',
-      'processing': 'Siap',
+      'processing': 'Siap Ambil',
       'ready': 'Selesai',
     };
     return labels[current] ?? '';
@@ -402,29 +425,84 @@ class _OrderCard extends ConsumerWidget {
 
   String _statusLabel(String status) {
     const labels = {
-      'pending': 'Menunggu',
+      'pending': 'Menunggu Konfirmasi',
       'processing': 'Diproses',
-      'ready': 'Siap Ambil',
+      'ready': 'Siap Diambil',
       'completed': 'Selesai',
       'cancelled': 'Dibatalkan',
     };
     return labels[status] ?? status;
   }
 
-  void _updateStatus(BuildContext context, WidgetRef ref) async {
-    final next = _nextStatus(order.status);
+  void _confirmUpdateStatus(BuildContext context, WidgetRef ref) {
+    final next = _nextStatus(order.orderStatus);
     if (next == null) return;
+    
+    final labelAction = _nextStatusLabel(order.orderStatus).toLowerCase();
 
-    final ok = await ref
-        .read(ordersNotifierProvider.notifier)
-        .updateStatus(order.id, next);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            Text(ok ? 'Status pesanan diperbarui' : 'Gagal memperbarui status'),
-        backgroundColor: ok ? AppColors.success : AppColors.error,
-      ));
-    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Konfirmasi ${labelAction.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Yakin ingin mengubah status pesanan ini menjadi "${_statusLabel(next)}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref
+                  .read(ordersNotifierProvider.notifier)
+                  .updateStatus(order.id, next);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(ok ? 'Status pesanan berhasil diperbarui' : 'Gagal memperbarui status'),
+                  backgroundColor: ok ? AppColors.success : AppColors.error,
+                ));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _statusColor(order.orderStatus),
+              elevation: 0,
+            ),
+            child: const Text('Konfirmasi', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancel(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Batalkan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error)),
+        content: const Text('Apakah Anda yakin ingin membatalkan pesanan ini? Aksi ini tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kembali')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ok = await ref
+                  .read(ordersNotifierProvider.notifier)
+                  .updateStatus(order.id, 'cancelled');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(ok ? 'Pesanan berhasil dibatalkan' : 'Gagal membatalkan pesanan'),
+                  backgroundColor: ok ? AppColors.success : AppColors.error,
+                ));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              elevation: 0,
+            ),
+            child: const Text('Batalkan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -446,8 +524,8 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
           color: color,
         ),
       ),
