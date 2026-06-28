@@ -841,36 +841,7 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(2, (index) => _buildIndicatorDot(index)),
           ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 4),
-          const Text(
-            'Detail Transaksi Toko (Debug):',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          ...widget.transactions.take(5).map((tx) {
-            final localDate = tx.createdAt.toLocal();
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(
-                '• ${tx.paymentMethod.toUpperCase()} | Rp ${tx.totalAmount.toStringAsFixed(0)} | ${DateFormat('dd MMM yyyy HH:mm').format(localDate)}',
-                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
-              ),
-            );
-          }),
-          if (widget.transactions.length > 5)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '... dan ${widget.transactions.length - 5} transaksi lainnya',
-                style: const TextStyle(fontSize: 8, color: AppColors.textHint),
-              ),
-            ),
+
         ],
       ),
     );
