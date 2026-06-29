@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/menu_provider.dart';
 import '../providers/cart_provider.dart';
 import '../../data/models/vendor_model.dart';
-import '../../../onboarding/presentation/pages/campus_selection_page.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -37,19 +35,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final cartState = ref.watch(cartNotifierProvider);
     final vendorState = ref.watch(vendorNotifierProvider);
 
-    // Resolve Campus ID
-    final campusId = ref.watch(authStateProvider).valueOrNull?.campusId ?? ref.watch(selectedCampusIdProvider);
-
-    // Filter search results by campus
-    final filteredResults = campusId == null
-        ? searchState.results
-        : searchState.results.where((m) {
-            final vendor = vendorState.vendors.firstWhere(
-              (v) => v.id == m.vendorId,
-              orElse: () => const VendorModel(id: '', name: ''),
-            );
-            return vendor.campusId == campusId;
-          }).toList();
+    // Show all search results
+    final filteredResults = searchState.results;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -149,7 +136,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                 ),
                               ],
                               GestureDetector(
-                                onTap: () => ref.read(cartNotifierProvider.notifier).addToCart(menu),
+                                onTap: () {
+                                  ref.read(cartNotifierProvider.notifier).addToCart(menu);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('${menu.name} ditambahkan ke keranjang'),
+                                      duration: const Duration(seconds: 1),
+                                      backgroundColor: const Color(0xFF4F7FFF),
+                                    ),
+                                  );
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: const BoxDecoration(color: Color(0xFF4F7FFF), shape: BoxShape.circle),

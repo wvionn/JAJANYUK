@@ -7,7 +7,7 @@ import 'vendor_detail_page.dart';
 import 'search_page.dart';
 import 'cart_page.dart';
 import 'menu_detail_page.dart';
-import 'chat_list_page.dart';
+
 import '../../../onboarding/presentation/pages/campus_selection_page.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -97,34 +97,30 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
     final allMenusAsync = ref.watch(allMenusProvider);
 
     // Resolve Campus Name
-    final rawCampusId = ref.watch(authStateProvider).valueOrNull?.campusId ?? ref.watch(selectedCampusIdProvider);
+    final rawCampusId = ref.watch(authStateProvider).valueOrNull?.campusId
+        ?? ref.watch(selectedCampusIdProvider);
     final campusesAsync = ref.watch(onboardingCampusesProvider);
-    
-    String campusName = 'Memuat Kampus...';
-    String? effectiveCampusId = rawCampusId;
 
-    campusesAsync.whenData((campuses) {
-      if (rawCampusId != null && campuses.isNotEmpty) {
-        // Cek apakah campusId user valid dan ada di list campuses
-        final isValidCampus = campuses.any((c) => c.id == rawCampusId);
-        
-        if (!isValidCampus) {
-          // Fallback ke Kampus Bekasi jika ID tidak valid
-          effectiveCampusId = 'bc3287ef-8742-4863-b3b3-993155e13ecc';
-        }
+    final campusName = campusesAsync.when(
+      loading: () => rawCampusId != null ? 'Memuat Kampus...' : 'Kampus Umum',
+      error: (_, __) => 'Kampus Tidak Diketahui',
+      data: (campuses) {
+        if (rawCampusId == null || campuses.isEmpty) return 'Kampus Umum';
 
-        final campus = campuses.firstWhere(
-          (c) => c.id == effectiveCampusId,
-          orElse: () => campuses.firstWhere(
-            (c) => c.name.toLowerCase().contains('bekasi'),
-            orElse: () => campuses.first,
-          ),
-        );
-        campusName = campus.name;
-      } else if (rawCampusId == null) {
-        campusName = 'Kampus Umum';
-      }
-    });
+        final isValid = campuses.any((c) => c.id == rawCampusId);
+        final effectiveCampusId = isValid
+            ? rawCampusId
+            : 'bc3287ef-8742-4863-b3b3-993155e13ecc'; // fallback Bekasi
+
+      // Gunakan where+firstOrNull untuk menghindari type conflict orElse
+        final found =
+            campuses.where((c) => c.id == effectiveCampusId).firstOrNull ??
+            campuses.where((c) => c.name.toLowerCase().contains('bekasi')).firstOrNull ??
+            campuses.first;
+
+        return found.name;
+      },
+    );
 
     // Filter Vendors by selected campus (BYPASSED UNTUK TESTING)
     final filteredVendors = vendorState.vendors;
@@ -162,13 +158,6 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline, color: Colors.black),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ChatListPage()),
-            ),
-          ),
           Stack(
             children: [
               IconButton(
@@ -225,11 +214,10 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                 children: [
                   const Text('Kategori', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = 'Semua';
-                      });
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SearchPage()),
+                    ),
                     child: const Text(
                       'See all',
                       style: TextStyle(color: Color(0xFF4F7FFF), fontWeight: FontWeight.w600),
@@ -394,7 +382,16 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                                               ),
                                             ),
                                             GestureDetector(
-                                              onTap: () => ref.read(cartNotifierProvider.notifier).addToCart(menu),
+                                              onTap: () {
+                                                ref.read(cartNotifierProvider.notifier).addToCart(menu);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('${menu.name} ditambahkan ke keranjang'),
+                                                    duration: const Duration(seconds: 1),
+                                                    backgroundColor: const Color(0xFF4F7FFF),
+                                                  ),
+                                                );
+                                              },
                                               child: Container(
                                                 padding: const EdgeInsets.all(3),
                                                 decoration: const BoxDecoration(
@@ -639,10 +636,22 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                                   ),
                                 ],
                                 GestureDetector(
-                                  onTap: () => ref.read(cartNotifierProvider.notifier).addToCart(menu),
+                                  onTap: () {
+                                    ref.read(cartNotifierProvider.notifier).addToCart(menu);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('${menu.name} ditambahkan ke keranjang'),
+                                        duration: const Duration(seconds: 1),
+                                        backgroundColor: const Color(0xFF4F7FFF),
+                                      ),
+                                    );
+                                  },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(color: Color(0xFF4F7FFF), shape: BoxShape.circle),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF4F7FFF),
+                                      shape: BoxShape.circle,
+                                    ),
                                     child: const Icon(Icons.add, color: Colors.white, size: 16),
                                   ),
                                 ),
