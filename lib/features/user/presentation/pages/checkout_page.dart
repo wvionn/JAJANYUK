@@ -4,6 +4,9 @@ import '../providers/cart_provider.dart';
 import 'order_success_page.dart';
 import 'address_page.dart';
 import '../providers/profile_providers.dart';
+import '../providers/menu_provider.dart';
+import 'chat_page.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 enum PaymentMethod { cod, transfer, qris }
 
@@ -244,6 +247,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         elevation: 0,
         title: const Text('Checkout', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          if (cartState.vendorId != null)
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF4F7FFF)),
+              tooltip: 'Chat Penjual',
+              onPressed: () {
+                final vendorState = ref.read(vendorNotifierProvider);
+                final vendor = vendorState.vendors
+                    .where((v) => v.id == cartState.vendorId)
+                    .firstOrNull;
+                final vendorName = vendor?.name ?? 'Penjual';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatPage(
+                      vendorId: cartState.vendorId!,
+                      vendorName: vendorName,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -325,13 +351,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(item.menu.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              Text('x${item.quantity}  •  Rp ${item.menu.price.toStringAsFixed(0)}',
+                              Text('x${item.quantity}  •  ${item.menu.price.toRupiah()}',
                                   style: const TextStyle(color: Colors.grey, fontSize: 12)),
                             ],
                           ),
                         ),
-                        Text('Rp ${item.subtotal.toStringAsFixed(0)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                         Text(item.subtotal.toRupiah(),
+                             style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   )),
@@ -350,8 +376,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Total Bayar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text('Rp ${total.toStringAsFixed(0)}',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+                         Text(total.toRupiah(),
+                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
                       ],
                     ),
                   ),
@@ -442,8 +468,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Total: Rp ${total.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4F7FFF))),
+                 Text('Total: ${total.toRupiah()}',
+                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4F7FFF))),
                 Text(_paymentMethodName, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
@@ -454,15 +480,32 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 onPressed: cartState.isLoading
                     ? null
                     : () async {
+                        final vendorId = cartState.vendorId;
+                        final vendor = vendorId != null
+                            ? ref.read(vendorNotifierProvider).vendors
+                                .where((v) => v.id == vendorId)
+                                .firstOrNull
+                            : null;
+                        final vendorName = vendor?.name;
+
                         await ref.read(cartNotifierProvider.notifier).checkout(
                           note: _noteController.text.isEmpty ? null : _noteController.text,
                         );
                         if (!context.mounted) return;
                         final error = ref.read(cartNotifierProvider).error;
                         if (error == null) {
+                          ref.invalidate(orderHistoryProvider);
+                          final lastOrder = ref.read(cartNotifierProvider).lastOrder;
+                          final newOrderId = lastOrder?.id;
                           Navigator.pushAndRemoveUntil(
                             context,
-                            MaterialPageRoute(builder: (_) => const OrderSuccessPage()),
+                            MaterialPageRoute(
+                              builder: (_) => OrderSuccessPage(
+                                orderId: newOrderId,
+                                vendorId: vendorId,
+                                vendorName: vendorName,
+                              ),
+                            ),
                             (route) => route.isFirst,
                           );
                         } else {
@@ -514,7 +557,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey)),
-        Text('Rp ${amount.toStringAsFixed(0)}'),
+         Text(amount.toRupiah()),
       ],
     );
   }

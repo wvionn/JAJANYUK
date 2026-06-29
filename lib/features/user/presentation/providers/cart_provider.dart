@@ -119,55 +119,23 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 }
 
-final orderHistoryProvider = StreamProvider<List<OrderEntity>>((ref) {
+final orderHistoryProvider = FutureProvider<List<OrderEntity>>((ref) async {
   final client = Supabase.instance.client;
   final userId = client.auth.currentUser!.id;
-  final controller = StreamController<List<OrderEntity>>();
-
-  Future<void> fetchOrders() async {
-    final response = await client
-        .from('orders')
-        .select()
-        .eq('customer_id', userId)
-        .order('created_at', ascending: false);
-    final orders = (response as List).map((e) => OrderEntity(
-      id: e['id'],
-      customerId: e['customer_id'],
-      vendorId: e['vendor_id'],
-      totalPrice: (e['total_price'] as num).toDouble(),
-      orderStatus: e['order_status'],
-      paymentStatus: e['payment_status'],
-      note: e['note'],
-      createdAt: DateTime.parse(e['created_at']),
-    )).toList();
-    controller.add(orders);
-  }
-
-  fetchOrders();
-
-  final subscription = client
+  final response = await client
       .from('orders')
-      .stream(primaryKey: ['id'])
+      .select()
       .eq('customer_id', userId)
-      .order('created_at')
-      .listen((data) {
-        final orders = data.map((e) => OrderEntity(
-          id: e['id'],
-          customerId: e['customer_id'],
-          vendorId: e['vendor_id'],
-          totalPrice: (e['total_price'] as num).toDouble(),
-          orderStatus: e['order_status'],
-          paymentStatus: e['payment_status'],
-          note: e['note'],
-          createdAt: DateTime.parse(e['created_at']),
-        )).toList();
-        controller.add(orders);
-      });
-
-  ref.onDispose(() {
-    subscription.cancel();
-    controller.close();
-  });
-
-  return controller.stream;
+      .order('created_at', ascending: false);
+  
+  return (response as List).map((e) => OrderEntity(
+    id: e['id'],
+    customerId: e['customer_id'],
+    vendorId: e['vendor_id'],
+    totalPrice: (e['total_price'] as num).toDouble(),
+    orderStatus: e['order_status'],
+    paymentStatus: e['payment_status'],
+    note: e['note'],
+    createdAt: DateTime.parse(e['created_at']),
+  )).toList();
 });

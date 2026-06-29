@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cart_provider.dart';
 import '../providers/menu_provider.dart';
 import '../../data/models/vendor_model.dart';
+import 'order_detail_page.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class OrderHistoryPage extends ConsumerWidget {
   const OrderHistoryPage({super.key});
@@ -106,15 +108,25 @@ class OrderHistoryPage extends ConsumerWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final order = orders[index];
-
-                // Find vendor name
                 final vendor = vendorState.vendors.firstWhere(
                   (v) => v.id == order.vendorId,
                   orElse: () => const VendorModel(id: '', name: 'Warung'),
                 );
 
-                return Container(
-                  padding: const EdgeInsets.all(16),
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => OrderDetailPage(
+                          orderId: order.id,
+                          vendorName: vendor.name,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -194,7 +206,7 @@ class OrderHistoryPage extends ConsumerWidget {
                             style: TextStyle(color: Colors.grey[600], fontSize: 13),
                           ),
                           Text(
-                            'Rp ${order.totalPrice.toStringAsFixed(0)}',
+                            order.totalPrice.toRupiah(),
                             style: const TextStyle(
                               color: Color(0xFF4F7FFF),
                               fontWeight: FontWeight.bold,
@@ -205,7 +217,8 @@ class OrderHistoryPage extends ConsumerWidget {
                       ),
                     ],
                   ),
-                );
+                ),
+              );
               },
             );
           },
