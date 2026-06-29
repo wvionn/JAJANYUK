@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cart_provider.dart';
 import 'checkout_page.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class CartPage extends ConsumerWidget {
   const CartPage({super.key});
@@ -59,8 +60,8 @@ class CartPage extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(item.menu.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            Text('Rp ${item.menu.price.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xFF4F7FFF))),
-                            Text('Subtotal: Rp ${item.subtotal.toStringAsFixed(0)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text(item.menu.price.toRupiah(), style: const TextStyle(color: Color(0xFF4F7FFF))),
+                            Text('Subtotal: ${item.subtotal.toRupiah()}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -104,7 +105,7 @@ class CartPage extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text('Rp ${cartState.totalPrice.toStringAsFixed(0)}',
+                      Text(cartState.totalPrice.toRupiah(),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4F7FFF))),
                     ],
                   ),

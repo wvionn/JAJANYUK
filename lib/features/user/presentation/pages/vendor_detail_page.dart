@@ -6,6 +6,7 @@ import '../providers/cart_provider.dart';
 import 'cart_page.dart';
 import 'menu_detail_page.dart';
 import 'chat_page.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class VendorDetailPage extends ConsumerStatefulWidget {
   final VendorEntity vendor;
@@ -339,7 +340,7 @@ class _VendorDetailPageState extends ConsumerState<VendorDetailPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Rp ${menu.price.toStringAsFixed(0)}',
+                                        menu.price.toRupiah(),
                                         style: const TextStyle(
                                           color: Color(0xFFE67E22),
                                           fontWeight: FontWeight.bold,
@@ -412,7 +413,7 @@ class _VendorDetailPageState extends ConsumerState<VendorDetailPage> {
                     const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
                     const SizedBox(width: 10),
                     Text(
-                      '${cartState.totalItems} item  •  Rp ${cartState.totalPrice.toStringAsFixed(0)}',
+                      '${cartState.totalItems} item  •  ${cartState.totalPrice.toRupiah()}',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     const SizedBox(width: 10),

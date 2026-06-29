@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/menu_entity.dart';
 import '../providers/cart_provider.dart';
 import 'chat_page.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class MenuDetailPage extends ConsumerStatefulWidget {
   final MenuEntity menu;
@@ -162,7 +163,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage>
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Rp ${widget.menu.price.toStringAsFixed(0)}',
+                              widget.menu.price.toRupiah(),
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -340,7 +341,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage>
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     Text(
-                      'Rp ${totalPrice.toStringAsFixed(0)}',
+                      totalPrice.toRupiah(),
                       style: const TextStyle(fontSize: 12, color: Colors.white70),
                     ),
                   ],

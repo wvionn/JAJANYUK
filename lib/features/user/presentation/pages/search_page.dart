@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/menu_provider.dart';
 import '../providers/cart_provider.dart';
 import '../../data/models/vendor_model.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -115,7 +116,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                Text('Rp ${menu.price.toStringAsFixed(0)}', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                                Text(menu.price.toRupiah(), style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
