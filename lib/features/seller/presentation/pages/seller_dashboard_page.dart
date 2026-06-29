@@ -801,6 +801,7 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
                   child: AnimatedBuilder(
                     animation: _animation,
                     builder: (context, _) => CustomPaint(
+                      size: Size.infinite,
                       painter: SellerChartPainter(
                         dates: dates,
                         singleData: totalData,
@@ -822,6 +823,7 @@ class _SellerDashboardChartsState extends State<SellerDashboardCharts>
                   child: AnimatedBuilder(
                     animation: _animation,
                     builder: (context, _) => CustomPaint(
+                      size: Size.infinite,
                       painter: SellerChartPainter(
                         dates: dates,
                         qrisData: qrisData,
@@ -963,7 +965,7 @@ class SellerChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = Colors.grey[150]!
+      ..color = Colors.grey[200]!
       ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
