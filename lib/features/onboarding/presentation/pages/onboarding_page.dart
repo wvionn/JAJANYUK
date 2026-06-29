@@ -32,17 +32,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       title: 'Dari mahasiswa, untuk mahasiswa',
       description:
           'Platform yang dibuat khusus untuk memudahkan mahasiswa memesan makanan',
-      image: 'assets/onboarding/mahasiswa.png',
+      image: 'assets/onboarding/mhs.png',
     ),
     OnboardingData(
       title: 'Makan sesuai caramu',
       description: 'Pilih menu favorit, bayar dengan mudah, dan nikmati!',
-      image: 'assets/onboarding/warung_kantin.jpg',
+      image: 'assets/onboarding/warung_kantin_kampus.jpg',
     ),
     OnboardingData(
       title: 'Makan di kampus jadi lebih mudah',
       description: 'Hemat waktu dan tenaga dengan pesan online',
-      image: 'assets/onboarding/pamflet.jpg',
+      image: 'assets/onboarding/pamflet.png',
     ),
   ];
 
