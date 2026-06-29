@@ -282,6 +282,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
   }
 
   void _subscribeToOrders() {
+    if (vendorId.isEmpty) return;
     _subscription?.cancel();
     state = state.copyWith(isLoading: true, clearError: true);
     _subscription = _repository.watchOrders(vendorId).listen(
