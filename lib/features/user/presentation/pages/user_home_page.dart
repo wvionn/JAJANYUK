@@ -19,11 +19,13 @@ class UserHomePage extends ConsumerStatefulWidget {
 }
 
 class _UserHomePageState extends ConsumerState<UserHomePage> {
-  final List<String> categories = ['Mie Goreng', 'Kopi', 'Nasi Goreng', 'Dimsum'];
+  final List<String> categories = ['Semua', 'Mie Goreng', 'Kopi', 'Nasi Goreng', 'Dimsum'];
   String _selectedCategory = 'Semua';
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
+      case 'Semua':
+        return Icons.grid_view;
       case 'Mie Goreng':
         return Icons.rice_bowl;
       case 'Kopi':
@@ -39,6 +41,8 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
+      case 'Semua':
+        return const Color(0xFFEEF3FF);
       case 'Mie Goreng':
         return const Color(0xFFFFF9E6);
       case 'Kopi':
@@ -54,6 +58,8 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
 
   Color _getCategoryIconColor(String category) {
     switch (category) {
+      case 'Semua':
+        return const Color(0xFF4F7FFF);
       case 'Mie Goreng':
         return const Color(0xFFF39C12);
       case 'Kopi':
@@ -242,7 +248,9 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                         setState(() {
                           _selectedCategory = cat;
                         });
-                        ref.read(menuNotifierProvider.notifier).loadMenusByCategory(cat);
+                        if (cat != 'Semua') {
+                          ref.read(menuNotifierProvider.notifier).loadMenusByCategory(cat);
+                        }
                       },
                       child: Column(
                         children: [
@@ -334,21 +342,38 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Top half with category color / icon
+                                  // Top half: menu image or category icon fallback
                                   Expanded(
-                                    child: Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        color: _getRecommendationBgColor(menu.category ?? ''),
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          _getCategoryIcon(menu.category ?? ''),
-                                          color: _getCategoryIconColor(menu.category ?? ''),
-                                          size: 40,
-                                        ),
-                                      ),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                                          ? Image.network(
+                                              menu.imageUrl!,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                width: double.infinity,
+                                                color: _getRecommendationBgColor(menu.category ?? ''),
+                                                child: Center(
+                                                  child: Icon(
+                                                    _getCategoryIcon(menu.category ?? ''),
+                                                    color: _getCategoryIconColor(menu.category ?? ''),
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              width: double.infinity,
+                                              color: _getRecommendationBgColor(menu.category ?? ''),
+                                              child: Center(
+                                                child: Icon(
+                                                  _getCategoryIcon(menu.category ?? ''),
+                                                  color: _getCategoryIconColor(menu.category ?? ''),
+                                                  size: 40,
+                                                ),
+                                              ),
+                                            ),
                                     ),
                                   ),
                                   // Bottom half details
@@ -464,12 +489,24 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                               // Large Banner Image / Placeholder
                               ClipRRect(
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                child: vendor.logoUrl != null
+                                child: vendor.logoUrl != null && vendor.logoUrl!.isNotEmpty
                                     ? Image.network(
                                         vendor.logoUrl!,
                                         height: 130,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          height: 130,
+                                          width: double.infinity,
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [Color(0xFFE8F0FE), Color(0xFFC3D8FA)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Icon(Icons.storefront, size: 50, color: Color(0xFF4F7FFF)),
+                                        ),
                                       )
                                     : Container(
                                         height: 130,

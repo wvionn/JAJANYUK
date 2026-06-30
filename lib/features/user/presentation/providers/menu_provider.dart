@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/menu_remote_datasource.dart';
@@ -45,19 +46,34 @@ class VendorState {
 
 class VendorNotifier extends StateNotifier<VendorState> {
   final MenuRepository _repository;
+  StreamSubscription? _subscription;
 
   VendorNotifier(this._repository) : super(const VendorState()) {
-    loadVendors();
+    _subscribeToVendors();
+  }
+
+  void _subscribeToVendors() {
+    state = state.copyWith(isLoading: true, clearError: true);
+    _subscription = _repository.watchVendors().listen(
+      (vendors) {
+        state = state.copyWith(vendors: vendors, isLoading: false);
+      },
+      onError: (e) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      },
+    );
   }
 
   Future<void> loadVendors() async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final vendors = await _repository.getVendors();
-      state = state.copyWith(vendors: vendors, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
+    // Re-subscribe to refresh data
+    _subscription?.cancel();
+    _subscribeToVendors();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }
 

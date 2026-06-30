@@ -75,7 +75,7 @@ class SellerDashboardPage extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildStatsGrid(ordersState, menuState),
+                      _buildStatsGrid(ordersState, menuState, txState),
                       const SizedBox(height: 20),
 
                       // Sales Chart
@@ -292,12 +292,12 @@ class SellerDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(OrdersState ordersState, MenuState menuState) {
+  Widget _buildStatsGrid(OrdersState ordersState, MenuState menuState, SellerTransactionState txState) {
     final pendingCount = ordersState.countByStatus('pending');
     final processingCount = ordersState.countByStatus('processing');
     final cancelledCount = ordersState.countByStatus('cancelled');
 
-    // Today completed count & revenue
+    // Today completed count from orders (real-time)
     final today = DateTime.now();
     final completedToday = ordersState.orders.where((o) {
       if (o.orderStatus != 'completed') return false;
@@ -307,8 +307,19 @@ class SellerDashboardPage extends ConsumerWidget {
           localCreated.day == today.day;
     }).toList();
     final completedCount = completedToday.length;
+
+    // Calculate today's revenue from transaction reports (same source as reports page)
+    final todayTransactions = txState.transactions.where((tx) {
+      final isPaidOrCompleted =
+          tx.paymentStatus == 'paid' || tx.orderStatus == 'completed';
+      if (!isPaidOrCompleted) return false;
+      final localDate = tx.createdAt.toLocal();
+      return localDate.year == today.year &&
+          localDate.month == today.month &&
+          localDate.day == today.day;
+    });
     final earningsToday =
-        completedToday.fold<double>(0.0, (sum, o) => sum + o.totalPrice);
+        todayTransactions.fold<double>(0.0, (sum, tx) => sum + tx.totalAmount);
 
     final activeMenus = menuState.items.where((i) => i.isAvailable).length;
 
