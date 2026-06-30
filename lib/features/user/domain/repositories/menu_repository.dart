@@ -7,4 +7,5 @@ abstract class MenuRepository {
   Future<List<MenuEntity>> getMenusByVendor(String vendorId);
   Future<List<MenuEntity>> searchMenus(String query);
   Future<List<MenuEntity>> getMenusByCategory(String category);
+  Future<List<MenuEntity>> getAllMenus();
 }

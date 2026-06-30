@@ -4,6 +4,7 @@ import 'package:esa_eats/features/user/domain/entities/menu_entity.dart';
 import 'package:esa_eats/features/user/domain/repositories/order_repository.dart';
 import 'package:esa_eats/features/user/domain/entities/order_entity.dart';
 import 'package:esa_eats/features/user/domain/entities/cart_item_entity.dart';
+import 'package:esa_eats/features/user/domain/entities/order_item_entity.dart';
 
 class FakeOrderRepository implements OrderRepository {
   @override
@@ -26,6 +27,11 @@ class FakeOrderRepository implements OrderRepository {
 
   @override
   Future<List<OrderEntity>> getMyOrders() async {
+    return [];
+  }
+
+  @override
+  Future<List<OrderItemEntity>> getOrderItems(String orderId) async {
     return [];
   }
 }

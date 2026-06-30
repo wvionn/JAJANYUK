@@ -190,5 +190,5 @@ final searchNotifierProvider = StateNotifierProvider<SearchNotifier, SearchState
 });
 
 final allMenusProvider = FutureProvider<List<MenuEntity>>((ref) async {
-  return ref.watch(menuRemoteDatasourceProvider).getAllMenus();
+  return ref.watch(menuRepositoryProvider).getAllMenus();
 });

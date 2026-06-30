@@ -1,44 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../domain/entities/chat_message_entity.dart';
 import '../providers/cart_provider.dart';
-
-class ChatMessage {
-  final String text;
-  final bool isMe;
-  final DateTime time;
-  final String? imageUrl;
-
-  const ChatMessage({
-    required this.text,
-    required this.isMe,
-    required this.time,
-    this.imageUrl,
-  });
-}
-
-// Real-time chat messages stream provider based on orderId
-final userChatStreamProvider = StreamProvider.family<List<ChatMessage>, String>((ref, orderId) {
-  final client = Supabase.instance.client;
-  final currentUserId = client.auth.currentUser?.id ?? '';
-  
-  return client
-      .from('chat_messages')
-      .stream(primaryKey: ['id'])
-      .eq('order_id', orderId)
-      .order('created_at')
-      .map((list) {
-        return list.map((e) {
-          return ChatMessage(
-            text: e['message'] as String? ?? '',
-            isMe: (e['sender_id'] as String?) == currentUserId,
-            time: e['created_at'] != null 
-                ? DateTime.parse(e['created_at'] as String) 
-                : DateTime.now(),
-          );
-        }).toList();
-      });
-});
+import '../providers/chat_provider.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final String vendorId;
@@ -67,18 +31,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   Future<void> _sendMessage(String text, String orderId) async {
     if (text.trim().isEmpty) return;
-    final client = Supabase.instance.client;
-    final currentUserId = client.auth.currentUser?.id;
-    if (currentUserId == null) return;
 
     try {
-      await client.from('chat_messages').insert({
-        'order_id': orderId,
-        'sender_id': currentUserId,
-        'message': text.trim(),
-        'is_read': false,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      await ref.read(chatRepositoryProvider).sendMessage(
+        orderId: orderId,
+        text: text,
+      );
       _messageController.clear();
       _scrollToBottom();
     } catch (e) {
@@ -364,7 +322,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  Widget _buildBubble(ChatMessage msg) {
+  Widget _buildBubble(ChatMessageEntity msg) {
     final isMe = msg.isMe;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

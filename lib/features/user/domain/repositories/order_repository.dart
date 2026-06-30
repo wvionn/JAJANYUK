@@ -1,5 +1,6 @@
 import '../entities/cart_item_entity.dart';
 import '../entities/order_entity.dart';
+import '../entities/order_item_entity.dart';
 
 abstract class OrderRepository {
   Future<OrderEntity> createOrder({
@@ -8,4 +9,5 @@ abstract class OrderRepository {
     String? note,
   });
   Future<List<OrderEntity>> getMyOrders();
+  Future<List<OrderItemEntity>> getOrderItems(String orderId);
 }

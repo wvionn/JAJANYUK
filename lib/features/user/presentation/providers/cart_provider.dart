@@ -120,22 +120,5 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 final orderHistoryProvider = FutureProvider<List<OrderEntity>>((ref) async {
-  final client = Supabase.instance.client;
-  final userId = client.auth.currentUser!.id;
-  final response = await client
-      .from('orders')
-      .select()
-      .eq('customer_id', userId)
-      .order('created_at', ascending: false);
-  
-  return (response as List).map((e) => OrderEntity(
-    id: e['id'],
-    customerId: e['customer_id'],
-    vendorId: e['vendor_id'],
-    totalPrice: (e['total_price'] as num).toDouble(),
-    orderStatus: e['order_status'],
-    paymentStatus: e['payment_status'],
-    note: e['note'],
-    createdAt: DateTime.parse(e['created_at']),
-  )).toList();
+  return ref.watch(orderRepositoryProvider).getMyOrders();
 });

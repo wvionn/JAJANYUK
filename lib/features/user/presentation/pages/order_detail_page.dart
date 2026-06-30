@@ -1,45 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../domain/entities/order_item_entity.dart';
 import '../providers/cart_provider.dart';
 import '../../domain/entities/order_entity.dart';
 import 'chat_page.dart';
 import '../../../../core/utils/currency_formatter.dart';
 
-// Model lokal untuk item pesanan detail
-class OrderDetailItem {
-  final String name;
-  final int quantity;
-  final double price;
-  final double subtotal;
-
-  const OrderDetailItem({
-    required this.name,
-    required this.quantity,
-    required this.price,
-    required this.subtotal,
-  });
-}
-
-// Provider untuk mengambil data items pesanan beserta nama menunya dari Supabase
-final orderItemsProvider =
-    FutureProvider.family<List<OrderDetailItem>, String>((ref, orderId) async {
-  final client = Supabase.instance.client;
-  final response = await client
-      .from('order_items')
-      .select('*, menus(name)')
-      .eq('order_id', orderId);
-
-  return (response as List).map((e) {
-    final menu = e['menus'] as Map<String, dynamic>?;
-    return OrderDetailItem(
-      name: menu?['name'] as String? ?? 'Menu Makanan',
-      quantity: e['quantity'] as int? ?? 1,
-      price: (e['price'] as num?)?.toDouble() ?? 0.0,
-      subtotal: (e['subtotal'] as num?)?.toDouble() ?? 0.0,
-    );
-  }).toList();
+// Provider untuk mengambil data items pesanan beserta nama menunya dari repository
+final orderItemsProvider = FutureProvider.family<List<OrderItemEntity>, String>((ref, orderId) async {
+  return ref.watch(orderRepositoryProvider).getOrderItems(orderId);
 });
 
 class OrderDetailPage extends ConsumerStatefulWidget {

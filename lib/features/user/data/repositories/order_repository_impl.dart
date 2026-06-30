@@ -1,5 +1,6 @@
 import '../../domain/entities/cart_item_entity.dart';
 import '../../domain/entities/order_entity.dart';
+import '../../domain/entities/order_item_entity.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
 
@@ -24,5 +25,10 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<List<OrderEntity>> getMyOrders() async {
     return await _datasource.getMyOrders();
+  }
+
+  @override
+  Future<List<OrderItemEntity>> getOrderItems(String orderId) async {
+    return await _datasource.getOrderItems(orderId);
   }
 }

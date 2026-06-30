@@ -32,4 +32,9 @@ class MenuRepositoryImpl implements MenuRepository {
   Future<List<MenuEntity>> getMenusByCategory(String category) async {
     return await _datasource.getMenusByCategory(category);
   }
+
+  @override
+  Future<List<MenuEntity>> getAllMenus() async {
+    return await _datasource.getAllMenus();
+  }
 }

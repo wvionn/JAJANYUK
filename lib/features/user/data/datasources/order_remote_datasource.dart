@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
+import '../models/order_item_model.dart';
 import '../../domain/entities/cart_item_entity.dart';
 
 class OrderRemoteDatasource {
@@ -49,5 +50,13 @@ final orderResponse = await _client.from('orders').insert({
         .eq('customer_id', userId)
         .order('created_at', ascending: false);
     return (response as List).map((e) => OrderModel.fromJson(e)).toList();
+  }
+
+  Future<List<OrderItemModel>> getOrderItems(String orderId) async {
+    final response = await _client
+        .from('order_items')
+        .select('*, menus(name)')
+        .eq('order_id', orderId);
+    return (response as List).map((e) => OrderItemModel.fromJson(e)).toList();
   }
 }
