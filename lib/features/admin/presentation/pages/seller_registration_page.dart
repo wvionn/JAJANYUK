@@ -188,11 +188,11 @@ class _SellerRegistrationPageState
 
               CustomTextField(
                 label: 'Email Seller',
-                hint: 'email@kantin.com',
+                hint: 'nama@esaeats.com',
                 controller: _emailController,
                 prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
-                validator: Validators.email,
+                validator: Validators.sellerEmail,
               ),
               const SizedBox(height: 16),
 
@@ -233,7 +233,7 @@ class _SellerRegistrationPageState
                     error: (_, __) => const Text('Gagal memuat kampus'),
                     data: (campuses) => DropdownButtonFormField<CampusEntity>(
                       initialValue: _selectedCampus,
-                      hint: const Text('Pilih kampus (opsional)'),
+                      hint: const Text('Pilih kampus'),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: AppColors.inputBackground,

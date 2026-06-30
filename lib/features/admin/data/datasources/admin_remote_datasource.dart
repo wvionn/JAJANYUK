@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
+import 'package:supabase_flutter/supabase_flutter.dart' as sb show AuthException;
+import '../../../../core/config/app_config.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../models/campus_model.dart';
@@ -101,7 +103,6 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   @override
   Future<void> deleteUser(String userId) async {
     try {
-      await supabaseClient.auth.admin.deleteUser(userId);
       await supabaseClient.from('users').delete().eq('id', userId);
     } catch (e) {
       throw ServerException(e.toString());
@@ -119,12 +120,22 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     String? campusId,
   }) async {
     try {
-      final response = await supabaseClient.auth.admin.createUser(
-        AdminUserAttributes(
-          email: email,
-          password: password,
-          emailConfirm: true,
+      // Create a temporary client to sign up the new seller, avoiding logging out the current admin
+      final tempClient = SupabaseClient(
+        AppConfig.supabaseUrl,
+        AppConfig.supabaseAnonKey,
+        authOptions: const AuthClientOptions(
+          authFlowType: AuthFlowType.implicit,
         ),
+      );
+
+      final response = await tempClient.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': fullName,
+          'role': 'seller',
+        },
       );
 
       if (response.user == null) {
@@ -142,10 +153,10 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      await supabaseClient.from('users').insert(profileData);
+      await supabaseClient.from('users').upsert(profileData);
 
       return UserModel.fromJson({...profileData, 'updated_at': null});
-    } on AuthException catch (e) {
+    } on sb.AuthException catch (e) {
       throw AuthException(e.message);
     } catch (e) {
       throw ServerException(e.toString());
@@ -184,7 +195,22 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   @override
   Future<void> deleteSeller(String sellerId) async {
     try {
-      await supabaseClient.auth.admin.deleteUser(sellerId);
+      // 1. Get vendor_id from seller_profiles
+      final profileRes = await supabaseClient
+          .from('seller_profiles')
+          .select('vendor_id')
+          .eq('user_id', sellerId)
+          .maybeSingle();
+
+      if (profileRes != null) {
+        final vendorId = profileRes['vendor_id'] as String?;
+        if (vendorId != null) {
+          // 2. Delete vendor (will cascade delete the seller_profiles row)
+          await supabaseClient.from('vendors').delete().eq('id', vendorId);
+        }
+      }
+
+      // 3. Delete from public.users
       await supabaseClient.from('users').delete().eq('id', sellerId);
     } catch (e) {
       throw ServerException(e.toString());
