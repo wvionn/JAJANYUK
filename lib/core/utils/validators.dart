@@ -16,6 +16,21 @@ class Validators {
     return null;
   }
 
+  /// Validator khusus untuk email seller (@esaeats.com)
+  static String? sellerEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email tidak boleh kosong';
+    }
+    final emailRegex = RegExp(r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Format email tidak valid';
+    }
+    if (!value.toLowerCase().endsWith('@esaeats.com')) {
+      return 'Email harus menggunakan domain @esaeats.com';
+    }
+    return null;
+  }
+
   /// Validator khusus untuk email kampus (student.univ.ac.id)
   static String? campusEmail(String? value) {
     if (value == null || value.isEmpty) {

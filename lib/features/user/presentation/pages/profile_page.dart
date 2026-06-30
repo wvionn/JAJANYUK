@@ -17,7 +17,8 @@ class ProfilePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.valueOrNull;
-    final userName = user?.fullName ?? 'Pengguna';
+    final name = user?.fullName;
+    final userName = (name == null || name.trim().isEmpty) ? 'Pengguna' : name;
     final userEmail = user?.email ?? 'Tidak ada email';
 
     return Scaffold(
@@ -26,11 +27,13 @@ class ProfilePage extends ConsumerWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // User Header Info
-            Container(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 120),
+          child: Column(
+            children: [
+              // User Header Info
+              Container(
               padding: const EdgeInsets.all(24),
               color: Colors.white,
               child: Row(
@@ -139,21 +142,24 @@ class ProfilePage extends ConsumerWidget {
             // Log Out Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton(
-                onPressed: () => _showLogoutDialog(context, ref),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
+              child: InkWell(
+                onTap: () => _showLogoutDialog(context, ref),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.red, width: 1.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: const Text(
-                  'Logout',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Logout',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -162,8 +168,9 @@ class ProfilePage extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(

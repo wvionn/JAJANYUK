@@ -112,7 +112,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Link konfirmasi telah dikirim ke:\n${_emailController.text.trim()}\n\nSilakan cek email kamu untuk mengaktifkan akun.',
+              //'Link konfirmasi telah dikirim ke:\n${_emailController.text.trim()}\n\nSilakan cek email kamu untuk mengaktifkan akun.',
+              'Akun berhasil dibuat, silakan login',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
