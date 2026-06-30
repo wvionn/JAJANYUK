@@ -94,10 +94,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.hasContentDimensions) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -201,8 +202,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ),
             ),
             data: (messages) {
-              WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-
               return Column(
                 children: [
                   // Chat area
@@ -223,10 +222,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           )
                         : ListView.builder(
                             controller: _scrollController,
+                            reverse: true,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             itemCount: messages.length,
                             itemBuilder: (context, index) {
-                              return _buildBubble(messages[index]);
+                              // Reverse order so newest message is at the bottom
+                              final reversedIndex = messages.length - 1 - index;
+                              return _buildBubble(messages[reversedIndex]);
                             },
                           ),
                   ),
