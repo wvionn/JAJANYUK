@@ -133,6 +133,57 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
     );
   }
 
+  Widget _buildCampusImage(CampusEntity campus) {
+    final nameLower = campus.name.toLowerCase();
+    final cityLower = campus.city?.toLowerCase() ?? '';
+
+    if (nameLower.contains('bekasi') || cityLower.contains('bekasi')) {
+      return Image.asset(
+        'assets/onboarding/esgul-bekasi.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.school,
+            size: 40,
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    } else if (nameLower.contains('jakarta') || cityLower.contains('jakarta')) {
+      return Image.asset(
+        'assets/onboarding/esgul-jakarta.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.school,
+            size: 40,
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    } else if (nameLower.contains('tangerang') || cityLower.contains('tangerang')) {
+      return Image.asset(
+        'assets/onboarding/esgul-tangerang.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.school,
+            size: 40,
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }else {
+      return const Center(
+        child: Icon(
+          Icons.school,
+          size: 40,
+          color: AppColors.primary,
+        ),
+      );
+    }
+  }
+
   Widget _buildCampusCard(CampusEntity campus) {
     final isSelected = _selectedCampus == campus.id;
 
@@ -169,10 +220,9 @@ class _CampusSelectionPageState extends ConsumerState<CampusSelectionPage> {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.school,
-                size: 40,
-                color: AppColors.primary,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildCampusImage(campus),
               ),
             ),
             const SizedBox(width: 16),
