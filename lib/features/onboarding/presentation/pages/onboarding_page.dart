@@ -21,7 +21,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       title: 'Selamat Datang di Kantin Online Kampus',
       description:
           'Pesan makanan favorit kamu dengan mudah dan cepat langsung dari kampus',
-      image: 'assets/onboarding/delivery.png',
+      image: 'assets/onboarding/logo.png',
     ),
     OnboardingData(
       title: 'Pengantaran cepat di lingkungan kampus',
@@ -37,7 +37,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     OnboardingData(
       title: 'Makan sesuai caramu',
       description: 'Pilih menu favorit, bayar dengan mudah, dan nikmati!',
-      image: 'assets/onboarding/warung_kantin_kampus.jpg',
+      image: 'assets/onboarding/delivery.png',
     ),
     OnboardingData(
       title: 'Makan di kampus jadi lebih mudah',

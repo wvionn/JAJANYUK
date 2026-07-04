@@ -145,6 +145,39 @@ class _OrderCard extends ConsumerWidget {
 
   const _OrderCard({required this.order});
 
+  // Parse system tags from note
+  static ({String? returnInfo, String? complaintInfo, String cleanNote}) _parseNoteTags(String? rawNote) {
+    if (rawNote == null || rawNote.isEmpty) {
+      return (returnInfo: null, complaintInfo: null, cleanNote: '');
+    }
+
+    String? returnInfo;
+    String? complaintInfo;
+    String note = rawNote;
+
+    // Extract [RETURN: ...]
+    if (note.contains('[RETURN:')) {
+      final start = note.indexOf('[RETURN:');
+      final end = note.indexOf(']', start);
+      if (end != -1) {
+        returnInfo = note.substring(start + 8, end).trim();
+        note = note.replaceRange(start, end + 1, '').trim();
+      }
+    }
+
+    // Extract [COMPLAINT: ...]
+    if (note.contains('[COMPLAINT:')) {
+      final start = note.indexOf('[COMPLAINT:');
+      final end = note.indexOf(']', start);
+      if (end != -1) {
+        complaintInfo = note.substring(start + 11, end).trim();
+        note = note.replaceRange(start, end + 1, '').trim();
+      }
+    }
+
+    return (returnInfo: returnInfo, complaintInfo: complaintInfo, cleanNote: note);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formatter =
@@ -155,15 +188,23 @@ class _OrderCard extends ConsumerWidget {
 
     final showCancel = order.orderStatus == 'pending' || order.orderStatus == 'processing' || order.orderStatus == 'ready';
 
+    // Parse return & complaint tags
+    final parsed = _parseNoteTags(order.note);
+    final hasAlerts = parsed.returnInfo != null || parsed.complaintInfo != null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: order.orderStatus == 'pending'
+        border: hasAlerts
             ? Border.all(
-                color: AppColors.warning.withValues(alpha: 0.5), width: 1.5)
-            : null,
+                color: parsed.returnInfo != null ? Colors.orange.withValues(alpha: 0.6) : Colors.red.withValues(alpha: 0.6),
+                width: 1.5)
+            : order.orderStatus == 'pending'
+                ? Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.5), width: 1.5)
+                : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -175,6 +216,89 @@ class _OrderCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Return / Complaint Alert Banners ──
+          if (parsed.returnInfo != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.assignment_return_rounded, color: Colors.orange[800], size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '⚠ Pengajuan Pengembalian',
+                          style: TextStyle(
+                            color: Colors.orange[900],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          parsed.returnInfo!,
+                          style: TextStyle(color: Colors.orange[800], fontSize: 11, height: 1.3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          if (parsed.complaintInfo != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: parsed.returnInfo == null
+                    ? const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      )
+                    : null,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.report_problem_rounded, color: Colors.red[800], size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🚨 Komplain Pembeli',
+                          style: TextStyle(
+                            color: Colors.red[900],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          parsed.complaintInfo!,
+                          style: TextStyle(color: Colors.red[800], fontSize: 11, height: 1.3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Header: buyer info, time, status badge
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -258,7 +382,8 @@ class _OrderCard extends ConsumerWidget {
                         ],
                       ),
                     )),
-                if (order.note?.isNotEmpty == true)
+                // Show clean note (without system tags)
+                if (parsed.cleanNote.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(10),
@@ -275,7 +400,7 @@ class _OrderCard extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Catatan: ${order.note!}',
+                            'Catatan: ${parsed.cleanNote}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary,

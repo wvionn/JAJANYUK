@@ -19,11 +19,13 @@ class UserHomePage extends ConsumerStatefulWidget {
 }
 
 class _UserHomePageState extends ConsumerState<UserHomePage> {
-  final List<String> categories = ['Mie Goreng', 'Kopi', 'Nasi Goreng', 'Dimsum'];
+  final List<String> categories = ['Semua', 'Mie Goreng', 'Kopi', 'Nasi Goreng', 'Dimsum'];
   String _selectedCategory = 'Semua';
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
+      case 'Semua':
+        return Icons.grid_view;
       case 'Mie Goreng':
         return Icons.rice_bowl;
       case 'Kopi':
@@ -39,6 +41,8 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
+      case 'Semua':
+        return const Color(0xFFEEF3FF);
       case 'Mie Goreng':
         return const Color(0xFFFFF9E6);
       case 'Kopi':
@@ -54,6 +58,8 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
 
   Color _getCategoryIconColor(String category) {
     switch (category) {
+      case 'Semua':
+        return const Color(0xFF4F7FFF);
       case 'Mie Goreng':
         return const Color(0xFFF39C12);
       case 'Kopi':
@@ -96,37 +102,43 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
     final menuState = ref.watch(menuNotifierProvider);
     final allMenusAsync = ref.watch(allMenusProvider);
 
-    // Resolve Campus Name
+    // Resolve Campus ID and Name
     final rawCampusId = ref.watch(authStateProvider).valueOrNull?.campusId
         ?? ref.watch(selectedCampusIdProvider);
     final campusesAsync = ref.watch(onboardingCampusesProvider);
+
+    final campusesList = campusesAsync.valueOrNull ?? [];
+    final String effectiveCampusId;
+    if (rawCampusId != null && campusesList.any((c) => c.id == rawCampusId)) {
+      effectiveCampusId = rawCampusId;
+    } else {
+      final bekasiCampus = campusesList.where((c) => c.name.toLowerCase().contains('bekasi')).firstOrNull;
+      effectiveCampusId = bekasiCampus?.id ?? rawCampusId ?? 'bc3287ef-8742-4863-b3b3-993155e13ecc';
+    }
 
     final campusName = campusesAsync.when(
       loading: () => rawCampusId != null ? 'Memuat Kampus...' : 'Kampus Umum',
       error: (_, __) => 'Kampus Tidak Diketahui',
       data: (campuses) {
-        if (rawCampusId == null || campuses.isEmpty) return 'Kampus Umum';
-
-        final isValid = campuses.any((c) => c.id == rawCampusId);
-        final effectiveCampusId = isValid
-            ? rawCampusId
-            : 'bc3287ef-8742-4863-b3b3-993155e13ecc'; // fallback Bekasi
-
-      // Gunakan where+firstOrNull untuk menghindari type conflict orElse
-        final found =
-            campuses.where((c) => c.id == effectiveCampusId).firstOrNull ??
-            campuses.where((c) => c.name.toLowerCase().contains('bekasi')).firstOrNull ??
-            campuses.first;
-
+        if (campuses.isEmpty) return 'Kampus Umum';
+        final found = campuses.where((c) => c.id == effectiveCampusId).firstOrNull ?? campuses.first;
         return found.name;
       },
     );
 
-    // Filter Vendors by selected campus (BYPASSED UNTUK TESTING)
-    final filteredVendors = vendorState.vendors;
+    // Filter Vendors by selected campus
+    final filteredVendors = vendorState.vendors
+        .where((v) => v.campusId == effectiveCampusId)
+        .toList();
 
-    // Filter Menus for category by selected campus vendors (BYPASSED UNTUK TESTING)
-    final filteredMenus = menuState.menus;
+    // Filter Menus for category by selected campus vendors
+    final filteredMenus = menuState.menus.where((m) {
+      final vendor = vendorState.vendors.firstWhere(
+        (v) => v.id == m.vendorId,
+        orElse: () => const VendorModel(id: '', name: ''),
+      );
+      return vendor.campusId == effectiveCampusId;
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -242,7 +254,9 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                         setState(() {
                           _selectedCategory = cat;
                         });
-                        ref.read(menuNotifierProvider.notifier).loadMenusByCategory(cat);
+                        if (cat != 'Semua') {
+                          ref.read(menuNotifierProvider.notifier).loadMenusByCategory(cat);
+                        }
                       },
                       child: Column(
                         children: [
@@ -288,8 +302,14 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                   loading: () => const SizedBox(height: 150, child: Center(child: CircularProgressIndicator())),
                   error: (err, _) => Center(child: Text('Gagal memuat rekomendasi: $err')),
                   data: (allMenus) {
-                    // Filter recommendations by campus vendors (BYPASSED UNTUK TESTING)
-                    final filteredRecs = allMenus;
+                    // Filter recommendations by campus vendors
+                    final filteredRecs = allMenus.where((m) {
+                      final vendor = vendorState.vendors.firstWhere(
+                        (v) => v.id == m.vendorId,
+                        orElse: () => const VendorModel(id: '', name: ''),
+                      );
+                      return vendor.campusId == effectiveCampusId;
+                    }).toList();
 
                     if (filteredRecs.isEmpty) {
                       return const Center(child: Text('Belum ada menu rekomendasi di kampus ini'));
@@ -334,21 +354,38 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Top half with category color / icon
+                                  // Top half: menu image or category icon fallback
                                   Expanded(
-                                    child: Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        color: _getRecommendationBgColor(menu.category ?? ''),
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          _getCategoryIcon(menu.category ?? ''),
-                                          color: _getCategoryIconColor(menu.category ?? ''),
-                                          size: 40,
-                                        ),
-                                      ),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                      child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                                          ? Image.network(
+                                              menu.imageUrl!,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                width: double.infinity,
+                                                color: _getRecommendationBgColor(menu.category ?? ''),
+                                                child: Center(
+                                                  child: Icon(
+                                                    _getCategoryIcon(menu.category ?? ''),
+                                                    color: _getCategoryIconColor(menu.category ?? ''),
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              width: double.infinity,
+                                              color: _getRecommendationBgColor(menu.category ?? ''),
+                                              child: Center(
+                                                child: Icon(
+                                                  _getCategoryIcon(menu.category ?? ''),
+                                                  color: _getCategoryIconColor(menu.category ?? ''),
+                                                  size: 40,
+                                                ),
+                                              ),
+                                            ),
                                     ),
                                   ),
                                   // Bottom half details
@@ -464,12 +501,24 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
                               // Large Banner Image / Placeholder
                               ClipRRect(
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                child: vendor.logoUrl != null
+                                child: vendor.logoUrl != null && vendor.logoUrl!.isNotEmpty
                                     ? Image.network(
                                         vendor.logoUrl!,
                                         height: 130,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          height: 130,
+                                          width: double.infinity,
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [Color(0xFFE8F0FE), Color(0xFFC3D8FA)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Icon(Icons.storefront, size: 50, color: Color(0xFF4F7FFF)),
+                                        ),
                                       )
                                     : Container(
                                         height: 130,

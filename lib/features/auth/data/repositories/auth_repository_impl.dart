@@ -46,8 +46,9 @@ class AuthRepositoryImpl implements AuthRepository {
         };
         try {
           await supabaseClient.from('users').insert(profileData);
-        } catch (_) {
+        } catch (e) {
           // Hiraukan error jika RLS menolak, kembalikan user metadata sementara
+          print('AUTH_REPO_LOGIN_INSERT_ERROR: $e');
         }
 
         return Right(UserModel(
@@ -57,6 +58,15 @@ class AuthRepositoryImpl implements AuthRepository {
           role: UserRole.buyer,
           createdAt: DateTime.now(),
         ));
+      }
+
+      final dbName = profileResponse['full_name'] as String?;
+      final metaName = user.userMetadata?['full_name'] as String?;
+      if ((dbName == null || dbName.trim().isEmpty) && (metaName != null && metaName.trim().isNotEmpty)) {
+        try {
+          await supabaseClient.from('users').update({'full_name': metaName}).eq('id', user.id);
+          profileResponse['full_name'] = metaName;
+        } catch (_) {}
       }
 
       return Right(UserModel.fromJson(profileResponse));
@@ -102,8 +112,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
       try {
         await supabaseClient.from('users').upsert(profileData);
-      } catch (_) {
+      } catch (e) {
         // Hiraukan error jika trigger database sudah mengeksekusi ini
+        print('AUTH_REPO_REGISTER_UPSERT_ERROR: $e');
       }
 
       final userModel = UserModel(
@@ -148,6 +159,16 @@ class AuthRepositoryImpl implements AuthRepository {
 
       if (profileResponse == null) {
         return const Right(null);
+      }
+
+      // Self-healing: if db name is empty but metadata has it, sync it!
+      final dbName = profileResponse['full_name'] as String?;
+      final metaName = authUser.userMetadata?['full_name'] as String?;
+      if ((dbName == null || dbName.trim().isEmpty) && (metaName != null && metaName.trim().isNotEmpty)) {
+        try {
+          await supabaseClient.from('users').update({'full_name': metaName}).eq('id', authUser.id);
+          profileResponse['full_name'] = metaName;
+        } catch (_) {}
       }
 
       return Right(UserModel.fromJson(profileResponse));

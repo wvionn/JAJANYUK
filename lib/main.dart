@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,33 @@ void main() async {
       url: AppConfig.supabaseUrl,
       anonKey: AppConfig.supabaseAnonKey,
     );
+
+    // Sync database: activate all campuses and distribute vendors
+    try {
+      final client = Supabase.instance.client;
+      // 1. Activate all campuses
+      await client
+          .from('campuses')
+          .update({'is_active': true})
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 2. Fetch campuses and vendors to distribute
+      final campuses = await client.from('campuses').select().order('name');
+      final vendors = await client.from('vendors').select().order('name');
+
+      if (campuses.isNotEmpty && vendors.isNotEmpty) {
+        for (int i = 0; i < vendors.length; i++) {
+          final campus = campuses[i % campuses.length];
+          await client
+              .from('vendors')
+              .update({'campus_id': campus['id']})
+              .eq('id', vendors[i]['id']);
+        }
+      }
+      debugPrint('DB SYNC SUCCESS: Campuses activated, vendors distributed.');
+    } catch (e) {
+      debugPrint('DB SYNC ERROR: $e');
+    }
 
     runApp(
       const ProviderScope(
@@ -82,12 +110,13 @@ class EsaEatsApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'Esa Eats',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

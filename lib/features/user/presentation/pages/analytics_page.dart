@@ -92,10 +92,13 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     return orders.where((order) {
       final dt = (order.createdAt as DateTime).toLocal();
       if (_viewMode == 0) {
-        // Harian: filter by exact date
-        return dt.year == _selectedDate.year &&
-            dt.month == _selectedDate.month &&
-            dt.day == _selectedDate.day;
+        // Harian (Per Hari dalam Seminggu): filter by the week containing _selectedDate
+        final int dayOfWeek = _selectedDate.weekday;
+        final DateTime startOfWeek = _selectedDate.subtract(Duration(days: dayOfWeek - 1));
+        final DateTime startOfWeekDay = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+        final DateTime endOfWeekDay = startOfWeekDay.add(const Duration(days: 7)).subtract(const Duration(seconds: 1));
+        return dt.isAfter(startOfWeekDay.subtract(const Duration(seconds: 1))) &&
+            dt.isBefore(endOfWeekDay.add(const Duration(seconds: 1)));
       } else if (_viewMode == 1) {
         // Mingguan: filter by week in selected month
         return dt.year == _selectedDate.year &&
@@ -111,22 +114,37 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     final List<ChartDataPoint> data = [];
 
     if (_viewMode == 0) {
-      // Harian: tampilkan per jam (0-23)
-      final dayOrders = allOrders.where((o) {
-        final dt = o.createdAt as DateTime;
-        return dt.year == _selectedDate.year &&
-            dt.month == _selectedDate.month &&
-            dt.day == _selectedDate.day;
+      // Harian: tampilkan per hari dalam seminggu (Senin - Minggu)
+      final int dayOfWeek = _selectedDate.weekday;
+      final DateTime startOfWeek = _selectedDate.subtract(Duration(days: dayOfWeek - 1));
+      final DateTime startOfWeekDay = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+      final DateTime endOfWeekDay = startOfWeekDay.add(const Duration(days: 7)).subtract(const Duration(seconds: 1));
+
+      final weekOrders = allOrders.where((o) {
+        final dt = (o.createdAt as DateTime).toLocal();
+        return dt.isAfter(startOfWeekDay.subtract(const Duration(seconds: 1))) &&
+            dt.isBefore(endOfWeekDay.add(const Duration(seconds: 1)));
       }).toList();
 
-      for (int h = 0; h < 24; h++) {
-        final hourOrders = dayOrders.where((o) => (o.createdAt as DateTime).hour == h).toList();
+      final List<String> daysName = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+      final List<String> fullDaysName = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+      for (int i = 0; i < 7; i++) {
+        final DateTime currentDay = startOfWeekDay.add(Duration(days: i));
+        final dayOrders = weekOrders.where((o) {
+          final dt = (o.createdAt as DateTime).toLocal();
+          return dt.year == currentDay.year &&
+              dt.month == currentDay.month &&
+              dt.day == currentDay.day;
+        }).toList();
+
+        final formattedDay = DateFormat('dd MMM yyyy', 'id_ID').format(currentDay);
         data.add(ChartDataPoint(
-          label: '$h',
-          count: hourOrders.length.toDouble(),
-          spent: hourOrders.fold(0.0, (sum, o) => sum + o.totalPrice),
-          subtitle: 'Jam $h:00 - ${h + 1}:00',
-          rawOrdersCount: hourOrders.length,
+          label: daysName[i],
+          count: dayOrders.length.toDouble(),
+          spent: dayOrders.fold(0.0, (sum, o) => sum + o.totalPrice),
+          subtitle: '${fullDaysName[i]}, $formattedDay',
+          rawOrdersCount: dayOrders.length,
         ));
       }
     } else if (_viewMode == 1) {
@@ -203,13 +221,18 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _viewMode == 0 ? 'Tanggal' : _viewMode == 1 ? 'Bulan & Tahun' : 'Tahun',
+                    _viewMode == 0 ? 'Rentang Minggu' : _viewMode == 1 ? 'Bulan & Tahun' : 'Tahun',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _viewMode == 0
-                        ? DateFormat('dd MMMM yyyy', 'id_ID').format(_selectedDate)
+                        ? () {
+                            final int dayOfWeek = _selectedDate.weekday;
+                            final DateTime startOfWeek = _selectedDate.subtract(Duration(days: dayOfWeek - 1));
+                            final DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
+                            return '${DateFormat('dd MMM', 'id_ID').format(startOfWeek)} - ${DateFormat('dd MMM yyyy', 'id_ID').format(endOfWeek)}';
+                          }()
                         : _viewMode == 1
                             ? '${_monthsName[_selectedDate.month - 1]} ${_selectedDate.year}'
                             : '${_selectedDate.year}',
@@ -220,7 +243,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
               ElevatedButton.icon(
                 onPressed: () => _selectPeriod(context),
                 icon: const Icon(Icons.date_range, size: 18),
-                label: Text(_viewMode == 0 ? 'Ubah Tanggal' : _viewMode == 1 ? 'Ubah Bulan' : 'Ubah Tahun'),
+                label: Text(_viewMode == 0 ? 'Ubah Minggu' : _viewMode == 1 ? 'Ubah Bulan' : 'Ubah Tahun'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,

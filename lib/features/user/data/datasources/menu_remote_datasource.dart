@@ -14,6 +14,13 @@ class MenuRemoteDatasource {
     return (response as List).map((json) => VendorModel.fromJson(json)).toList();
   }
 
+  Stream<List<VendorModel>> watchVendors() {
+    return _client
+        .from('vendors')
+        .stream(primaryKey: ['id'])
+        .map((list) => list.map((json) => VendorModel.fromJson(json)).toList());
+  }
+
   Future<List<MenuModel>> getMenusByVendor(String vendorId) async {
     final response = await _client.from('menus').select().eq('vendor_id', vendorId);
     return (response as List).map((json) => MenuModel.fromJson(json)).toList();

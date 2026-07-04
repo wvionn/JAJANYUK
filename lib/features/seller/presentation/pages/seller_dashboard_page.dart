@@ -75,7 +75,7 @@ class SellerDashboardPage extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildStatsGrid(ordersState, menuState),
+                      _buildStatsGrid(ordersState, menuState, txState),
                       const SizedBox(height: 20),
 
                       // Sales Chart
@@ -292,12 +292,12 @@ class SellerDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(OrdersState ordersState, MenuState menuState) {
+  Widget _buildStatsGrid(OrdersState ordersState, MenuState menuState, SellerTransactionState txState) {
     final pendingCount = ordersState.countByStatus('pending');
     final processingCount = ordersState.countByStatus('processing');
     final cancelledCount = ordersState.countByStatus('cancelled');
 
-    // Today completed count & revenue
+    // Today completed count from orders (real-time)
     final today = DateTime.now();
     final completedToday = ordersState.orders.where((o) {
       if (o.orderStatus != 'completed') return false;
@@ -307,60 +307,188 @@ class SellerDashboardPage extends ConsumerWidget {
           localCreated.day == today.day;
     }).toList();
     final completedCount = completedToday.length;
+
+    // Calculate today's revenue from transaction reports (same source as reports page)
+    final todayTransactions = txState.transactions.where((tx) {
+      final isPaidOrCompleted =
+          tx.paymentStatus == 'paid' || tx.orderStatus == 'completed';
+      if (!isPaidOrCompleted) return false;
+      final localDate = tx.createdAt.toLocal();
+      return localDate.year == today.year &&
+          localDate.month == today.month &&
+          localDate.day == today.day;
+    });
     final earningsToday =
-        completedToday.fold<double>(0.0, (sum, o) => sum + o.totalPrice);
+        todayTransactions.fold<double>(0.0, (sum, tx) => sum + tx.totalAmount);
 
     final activeMenus = menuState.items.where((i) => i.isAvailable).length;
+
+    // Count return & complaint alerts
+    final alertOrders = ordersState.orders.where((o) {
+      final note = o.note ?? '';
+      return note.contains('[RETURN:') || note.contains('[COMPLAINT:');
+    }).toList();
+    final alertCount = alertOrders.length;
 
     final formatter =
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 0.85,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _StatCard(
-          label: 'Pesanan Masuk',
-          value: pendingCount.toString(),
-          icon: Icons.receipt_outlined,
-          color: AppColors.warning,
-          badge: pendingCount > 0,
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.85,
+          children: [
+            _StatCard(
+              label: 'Pesanan Masuk',
+              value: pendingCount.toString(),
+              icon: Icons.receipt_outlined,
+              color: AppColors.warning,
+              badge: pendingCount > 0,
+            ),
+            _StatCard(
+              label: 'Sedang Diproses',
+              value: processingCount.toString(),
+              icon: Icons.restaurant_outlined,
+              color: AppColors.info,
+            ),
+            _StatCard(
+              label: 'Selesai Hari Ini',
+              value: completedCount.toString(),
+              icon: Icons.check_circle_outline_rounded,
+              color: AppColors.success,
+            ),
+            _StatCard(
+              label: 'Pendapatan Hari Ini',
+              value: formatter.format(earningsToday),
+              icon: Icons.monetization_on_outlined,
+              color: const Color(0xFF10B981),
+              isSmallText: true,
+            ),
+            _StatCard(
+              label: 'Return & Komplain',
+              value: alertCount.toString(),
+              icon: Icons.warning_amber_rounded,
+              color: alertCount > 0 ? Colors.orange : AppColors.textSecondary,
+              badge: alertCount > 0,
+            ),
+            _StatCard(
+              label: 'Pesanan Batal',
+              value: cancelledCount.toString(),
+              icon: Icons.cancel_outlined,
+              color: AppColors.error,
+            ),
+          ],
         ),
-        _StatCard(
-          label: 'Sedang Diproses',
-          value: processingCount.toString(),
-          icon: Icons.restaurant_outlined,
-          color: AppColors.info,
-        ),
-        _StatCard(
-          label: 'Selesai Hari Ini',
-          value: completedCount.toString(),
-          icon: Icons.check_circle_outline_rounded,
-          color: AppColors.success,
-        ),
-        _StatCard(
-          label: 'Pendapatan Hari Ini',
-          value: formatter.format(earningsToday),
-          icon: Icons.monetization_on_outlined,
-          color: const Color(0xFF10B981),
-          isSmallText: true,
-        ),
-        _StatCard(
-          label: 'Menu Aktif',
-          value: '$activeMenus/${menuState.items.length}',
-          icon: Icons.menu_book_outlined,
-          color: AppColors.primary,
-        ),
-        _StatCard(
-          label: 'Pesanan Batal',
-          value: cancelledCount.toString(),
-          icon: Icons.cancel_outlined,
-          color: AppColors.error,
-        ),
+
+        // Active Return & Complaint Alerts
+        if (alertOrders.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.orange.withValues(alpha: 0.08), Colors.red.withValues(alpha: 0.06)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notification_important_rounded, color: Colors.orange[800], size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Pemberitahuan Return & Komplain',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.orange[900],
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[800],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${alertOrders.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...alertOrders.take(3).map((o) {
+                  final note = o.note ?? '';
+                  final hasReturn = note.contains('[RETURN:');
+                  final hasComplaint = note.contains('[COMPLAINT:');
+                  final buyerName = o.buyerName ?? 'Pembeli';
+                  final orderId = '#${o.id.substring(0, 8).toUpperCase()}';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          hasComplaint ? Icons.report_problem_rounded : Icons.assignment_return_rounded,
+                          color: hasComplaint ? Colors.red[700] : Colors.orange[700],
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(fontSize: 11, color: Colors.grey[800], height: 1.3),
+                              children: [
+                                TextSpan(
+                                  text: '$buyerName ',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                TextSpan(
+                                  text: hasReturn && hasComplaint
+                                      ? 'mengajukan return & komplain'
+                                      : hasReturn
+                                          ? 'mengajukan pengembalian'
+                                          : 'mengajukan komplain',
+                                ),
+                                TextSpan(
+                                  text: ' ($orderId)',
+                                  style: TextStyle(color: Colors.grey[500]),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (alertOrders.length > 3)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '+ ${alertOrders.length - 3} lainnya, lihat di halaman Pesanan Masuk',
+                      style: TextStyle(fontSize: 10, color: Colors.orange[700], fontStyle: FontStyle.italic),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -4,6 +4,8 @@ import '../providers/menu_provider.dart';
 import '../providers/cart_provider.dart';
 import '../../data/models/vendor_model.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../onboarding/presentation/pages/campus_selection_page.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -36,8 +38,26 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final cartState = ref.watch(cartNotifierProvider);
     final vendorState = ref.watch(vendorNotifierProvider);
 
-    // Show all search results
-    final filteredResults = searchState.results;
+    final rawCampusId = ref.watch(authStateProvider).valueOrNull?.campusId
+        ?? ref.watch(selectedCampusIdProvider);
+    final campusesAsync = ref.watch(onboardingCampusesProvider);
+    final campusesList = campusesAsync.valueOrNull ?? [];
+
+    final String effectiveCampusId;
+    if (rawCampusId != null && campusesList.any((c) => c.id == rawCampusId)) {
+      effectiveCampusId = rawCampusId;
+    } else {
+      final bekasiCampus = campusesList.where((c) => c.name.toLowerCase().contains('bekasi')).firstOrNull;
+      effectiveCampusId = bekasiCampus?.id ?? rawCampusId ?? 'bc3287ef-8742-4863-b3b3-993155e13ecc';
+    }
+
+    final filteredResults = searchState.results.where((m) {
+      final vendor = vendorState.vendors.firstWhere(
+        (v) => v.id == m.vendorId,
+        orElse: () => const VendorModel(id: '', name: ''),
+      );
+      return vendor.campusId == effectiveCampusId;
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),

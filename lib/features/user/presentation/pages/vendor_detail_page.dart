@@ -116,8 +116,21 @@ class _VendorDetailPageState extends ConsumerState<VendorDetailPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  widget.vendor.logoUrl != null
-                      ? Image.network(widget.vendor.logoUrl!, fit: BoxFit.cover)
+                  widget.vendor.logoUrl != null && widget.vendor.logoUrl!.isNotEmpty
+                      ? Image.network(
+                          widget.vendor.logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF4F7FFF), Color(0xFF8BA7FF)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Icon(Icons.storefront, size: 80, color: Colors.white54),
+                          ),
+                        )
                       : Container(
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(

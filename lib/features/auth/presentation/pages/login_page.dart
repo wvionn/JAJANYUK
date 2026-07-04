@@ -171,11 +171,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.lock_person,
-                        size: 100,
-                        color: AppColors.primary,
+                    child: Center(
+                      child: Image.asset(
+                        'assets/onboarding/logo.png',
+                        height: 120,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.lock_person,
+                          size: 100,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),

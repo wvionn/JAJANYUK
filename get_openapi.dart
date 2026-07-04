@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:convert';
 import 'dart:io';
 
@@ -23,5 +24,5 @@ void main() async {
   final orders = definitions['orders'];
   
   print('--- ORDERS TABLE SCHEMA ---');
-  print(JsonEncoder.withIndent('  ').convert(orders));
+  print(const JsonEncoder.withIndent('  ').convert(orders));
 }

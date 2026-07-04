@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/providers/theme_provider.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -11,10 +12,12 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDarkMode = themeMode == ThemeMode.dark;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -51,11 +54,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  value: _darkModeEnabled,
+                  value: isDarkMode,
                   onChanged: (val) {
-                    setState(() {
-                      _darkModeEnabled = val;
-                    });
+                    ref.read(themeModeProvider.notifier).toggleTheme(val);
                   },
                   title: const Text('Mode Gelap'),
                   subtitle: const Text('Ubah tampilan aplikasi menjadi gelap'),

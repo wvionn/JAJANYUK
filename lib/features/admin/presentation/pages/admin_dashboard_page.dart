@@ -764,7 +764,7 @@ class AdminChartPainter extends CustomPainter {
     final double chartHeight = size.height - paddingTop - paddingBottom;
 
     // Draw horizontal grid lines and Y axis labels
-    final int divisions = 4;
+    const int divisions = 4;
     for (int i = 0; i <= divisions; i++) {
       final double y = paddingTop + chartHeight - (i * chartHeight / divisions);
       canvas.drawLine(

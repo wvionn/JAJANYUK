@@ -14,6 +14,11 @@ class MenuRepositoryImpl implements MenuRepository {
   }
 
   @override
+  Stream<List<VendorEntity>> watchVendors() {
+    return _datasource.watchVendors();
+  }
+
+  @override
   Future<List<MenuEntity>> getMenusByVendor(String vendorId) async {
     return await _datasource.getMenusByVendor(vendorId);
   }

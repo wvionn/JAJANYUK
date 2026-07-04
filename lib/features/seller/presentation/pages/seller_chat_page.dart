@@ -27,9 +27,10 @@ class _SellerChatPageState extends ConsumerState<SellerChatPage> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.hasContentDimensions) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -169,19 +170,19 @@ class _SellerChatPageState extends ConsumerState<SellerChatPage> {
                   );
                 }
 
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _scrollToBottom());
-
                 return ListView.builder(
                   controller: _scrollController,
+                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (ctx, i) {
-                    final msg = messages[i];
+                    // Reversed so newest is at the bottom
+                    final reversedIndex = messages.length - 1 - i;
+                    final msg = messages[reversedIndex];
                     final isMe = msg.senderId == currentUserId;
-                    final showDate = i == 0 ||
-                        messages[i].createdAt.day !=
-                            messages[i - 1].createdAt.day;
+                    final showDate = reversedIndex == 0 ||
+                        messages[reversedIndex].createdAt.day !=
+                            messages[reversedIndex - 1].createdAt.day;
 
                     return Column(
                       children: [
