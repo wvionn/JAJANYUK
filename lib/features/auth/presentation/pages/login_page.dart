@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -75,13 +76,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   String _mapAuthError(String message) {
     final msg = message.toLowerCase();
-    if (msg.contains('invalid credentials') || msg.contains('invalid_credentials')) {
+    if (msg.contains('invalid credentials') ||
+        msg.contains('invalid_credentials')) {
       return 'Email atau password salah. Silakan coba lagi.';
     }
-    if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+    if (msg.contains('email not confirmed') ||
+        msg.contains('email_not_confirmed')) {
       return 'Email Anda belum dikonfirmasi. Silakan periksa kotak masuk email Anda untuk verifikasi.';
     }
-    if (msg.contains('network') || msg.contains('socket') || msg.contains('connection')) {
+    if (msg.contains('network') ||
+        msg.contains('socket') ||
+        msg.contains('connection')) {
       return 'Koneksi internet bermasalah. Silakan periksa jaringan Anda dan coba lagi.';
     }
     return 'Gagal masuk. Silakan periksa kembali data Anda.';
@@ -118,143 +123,326 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFE8F0FE), Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+      body: Stack(
+        children: [
+          // Background Gradient
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFEBF2FD), Colors.white],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
+
+          // Ambient Glow Circle 1
+          Positioned(
+            top: -size.height * 0.1,
+            right: -size.width * 0.2,
+            child: Container(
+              width: size.width * 0.8,
+              height: size.width * 0.8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.secondary.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+
+          // Ambient Glow Circle 2
+          Positioned(
+            top: size.height * 0.2,
+            left: -size.width * 0.25,
+            child: Container(
+              width: size.width * 0.9,
+              height: size.width * 0.9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.09),
+              ),
+            ),
+          ),
+
+          // Blur Layer
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+              child: const SizedBox(),
+            ),
+          ),
+
+          // Scrollable Content
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: InkWell(
-                      onTap: () => context.go(RouteNames.campusSelection),
-                      borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 16,
+                  // Back button
+                  GestureDetector(
+                    onTap: () => context.go(RouteNames.campusSelection),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Pilih Kampus',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.primary,
                             ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Pilih Kampus',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Header section
+                  Center(
+                    child: Column(
+                      children: [
+                        // Squircle Logo Container
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.12),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.black,
+                              width: 2.5,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(21),
+                            child: Container(
+                              color: Colors.black,
+                              padding: const EdgeInsets.all(12),
+                              child: Image.asset(
+                                'assets/onboarding/logo.png',
+                                fit: BoxFit.contain,
+                                errorBuilder:
+                                    (context, error, stackTrace) =>
+                                        const Icon(
+                                  Icons.restaurant,
+                                  size: 40,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+
+                        const SizedBox(height: 24),
+
+                        const Text(
+                          'Selamat Datang!',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        const Text(
+                          'Masuk untuk menjelajahi jajanan favorit kampusmu.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  // Illustration placeholder
+
+                  const SizedBox(height: 32),
+
+                  // Form Card
                   Container(
-                    height: 200,
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        'assets/onboarding/logo.png',
-                        height: 120,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.lock_person,
-                          size: 100,
-                          color: AppColors.primary,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 32,
+                          offset: const Offset(0, 12),
                         ),
+                      ],
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Masuk ke Akun Anda',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          const Text(
+                            'Silakan masukkan email dan password Anda untuk melanjutkan.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          CustomTextField(
+                            label: 'Email',
+                            hint: 'Masukkan Email',
+                            controller: _emailController,
+                            prefixIcon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: Validators.email,
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          CustomTextField(
+                            label: 'Password',
+                            hint: 'Masukkan Password',
+                            controller: _passwordController,
+                            prefixIcon: Icons.lock_outline,
+                            obscureText: true,
+                            validator: Validators.password,
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                context.push(RouteNames.forgotPassword);
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'Lupa Password?',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          CustomButton(
+                            text: 'Masuk',
+                            onPressed: _isLoading ? null : _handleLogin,
+                            isLoading: _isLoading,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'Login',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  CustomTextField(
-                    label: 'Email',
-                    hint: 'Masukan Email',
-                    controller: _emailController,
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Password',
-                    hint: 'Masukan Password',
-                    controller: _passwordController,
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: true,
-                    validator: Validators.password,
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        context.push(RouteNames.forgotPassword);
-                      },
-                      child: const Text(
-                        'Lupa Password?',
-                        style: TextStyle(color: AppColors.primary),
-                      ),
-                    ),
-                  ),
+
                   const SizedBox(height: 24),
-                  CustomButton(
-                    text: 'Login',
-                    onPressed: _handleLogin,
-                    isLoading: _isLoading,
-                  ),
-                  const SizedBox(height: 16),
+
+                  // Footer - Register link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
                         "Belum punya akun?",
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       TextButton(
                         onPressed: () => context.push(RouteNames.register),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                         child: const Text(
-                          'Daftar',
+                          'Daftar Sekarang',
                           style: TextStyle(
                             color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
