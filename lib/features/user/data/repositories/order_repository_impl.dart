@@ -31,4 +31,9 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<List<OrderItemEntity>> getOrderItems(String orderId) async {
     return await _datasource.getOrderItems(orderId);
   }
+
+  @override
+  Future<void> updateOrderNote({required String orderId, required String newNote}) async {
+    await _datasource.updateOrderNote(orderId: orderId, newNote: newNote);
+  }
 }

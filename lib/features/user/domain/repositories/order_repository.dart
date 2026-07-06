@@ -10,4 +10,5 @@ abstract class OrderRepository {
   });
   Future<List<OrderEntity>> getMyOrders();
   Future<List<OrderItemEntity>> getOrderItems(String orderId);
+  Future<void> updateOrderNote({required String orderId, required String newNote});
 }

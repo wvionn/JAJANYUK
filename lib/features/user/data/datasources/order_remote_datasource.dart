@@ -59,4 +59,11 @@ final orderResponse = await _client.from('orders').insert({
         .eq('order_id', orderId);
     return (response as List).map((e) => OrderItemModel.fromJson(e)).toList();
   }
-}
+
+  Future<void> updateOrderNote({required String orderId, required String newNote}) async {
+    await _client
+        .from('orders')
+        .update({'note': newNote})
+        .eq('id', orderId);
+  }
+}

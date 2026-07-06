@@ -203,9 +203,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     ? '[RETURN: $selectedReason - $details]'
                     : '$rawNote\n[RETURN: $selectedReason - $details]';
 
-                await Supabase.instance.client
-                    .from('orders')
-                    .update({'note': newNote}).eq('id', order.id);
+                await ref
+                    .read(orderRepositoryProvider)
+                    .updateOrderNote(orderId: order.id, newNote: newNote);
 
                 ref.invalidate(orderHistoryProvider);
 
@@ -342,9 +342,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     ? '[COMPLAINT: $selectedType - $details]'
                     : '$rawNote\n[COMPLAINT: $selectedType - $details]';
 
-                await Supabase.instance.client
-                    .from('orders')
-                    .update({'note': newNote}).eq('id', order.id);
+                await ref
+                    .read(orderRepositoryProvider)
+                    .updateOrderNote(orderId: order.id, newNote: newNote);
 
                 ref.invalidate(orderHistoryProvider);
 

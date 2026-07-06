@@ -34,6 +34,9 @@ class FakeOrderRepository implements OrderRepository {
   Future<List<OrderItemEntity>> getOrderItems(String orderId) async {
     return [];
   }
+
+  @override
+  Future<void> updateOrderNote({required String orderId, required String newNote}) async {}
 }
 
 void main() {
