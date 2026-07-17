@@ -201,14 +201,14 @@ class SellerRemoteDataSourceImpl implements SellerRemoteDataSource {
           // Fetch order details first
           final orderRes = await supabaseClient
               .from('orders')
-              .select('customer_id, vendor_id, total_price, payment_method')
+              .select('customer_id, vendor_id, total_price')
               .eq('id', orderId)
               .single();
           
           final customerId = orderRes['customer_id'] as String?;
           final vendorId = orderRes['vendor_id'] as String?;
           final totalPrice = (orderRes['total_price'] as num?)?.toDouble() ?? 0.0;
-          final payMethod = orderRes['payment_method'] as String? ?? 'cash';
+          const payMethod = 'cash'; // orders table does not contain payment_method column
 
           // Insert into transactions
           await supabaseClient.from('transactions').insert({
@@ -222,6 +222,7 @@ class SellerRemoteDataSourceImpl implements SellerRemoteDataSource {
           });
         } catch (txErr) {
           // transaction record might already exist or trigger handles it, ignore
+          print('Error logging transaction: $txErr');
         }
       }
     } catch (e) {

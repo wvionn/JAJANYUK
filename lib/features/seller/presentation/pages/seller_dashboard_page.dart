@@ -308,20 +308,11 @@ class SellerDashboardPage extends ConsumerWidget {
     }).toList();
     final completedCount = completedToday.length;
 
-    // Calculate today's revenue from transaction reports (same source as reports page)
-    final todayTransactions = txState.transactions.where((tx) {
-      final isPaidOrCompleted =
-          tx.paymentStatus == 'paid' || tx.orderStatus == 'completed';
-      if (!isPaidOrCompleted) return false;
-      final localDate = tx.createdAt.toLocal();
-      return localDate.year == today.year &&
-          localDate.month == today.month &&
-          localDate.day == today.day;
-    });
-    final earningsToday =
-        todayTransactions.fold<double>(0.0, (sum, tx) => sum + tx.totalAmount);
-
-    final activeMenus = menuState.items.where((i) => i.isAvailable).length;
+    // Calculate today's revenue directly from completed orders (real-time)
+    final earningsToday = completedToday.fold<double>(
+      0.0,
+      (sum, order) => sum + order.totalPrice,
+    );
 
     // Count return & complaint alerts
     final alertOrders = ordersState.orders.where((o) {

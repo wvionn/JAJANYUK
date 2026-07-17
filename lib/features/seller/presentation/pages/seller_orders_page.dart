@@ -626,6 +626,9 @@ class _OrderCard extends ConsumerWidget {
               final ok = await ref
                   .read(ordersNotifierProvider.notifier)
                   .updateStatus(order.id, next);
+              if (ok) {
+                ref.read(sellerTransactionReportProvider.notifier).loadReports();
+              }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(ok ? 'Status pesanan berhasil diperbarui' : 'Gagal memperbarui status'),
@@ -659,6 +662,9 @@ class _OrderCard extends ConsumerWidget {
               final ok = await ref
                   .read(ordersNotifierProvider.notifier)
                   .updateStatus(order.id, 'cancelled');
+              if (ok) {
+                ref.read(sellerTransactionReportProvider.notifier).loadReports();
+              }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(ok ? 'Pesanan berhasil dibatalkan' : 'Gagal membatalkan pesanan'),
