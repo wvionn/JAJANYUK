@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cart_provider.dart';
 import 'order_success_page.dart';
-import 'address_page.dart';
-import '../providers/profile_providers.dart';
 import '../providers/menu_provider.dart';
+import '../providers/profile_providers.dart';
 import 'chat_page.dart';
 import '../../../../core/utils/currency_formatter.dart';
 
 enum PaymentMethod { cod, transfer, qris }
+enum DeliveryType { ambilSendiri, diAntar }
 
 class CheckoutPage extends ConsumerStatefulWidget {
   const CheckoutPage({super.key});
@@ -19,11 +19,71 @@ class CheckoutPage extends ConsumerStatefulWidget {
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _lobbyController = TextEditingController();
   PaymentMethod _selectedPayment = PaymentMethod.qris;
+  DeliveryType _selectedDeliveryType = DeliveryType.ambilSendiri;
+  
+  final List<String> _gedungList = ['Gedung A', 'Gedung B', 'Lobi', 'Taman'];
+  String _selectedGedung = 'Gedung A';
+  String _selectedLantai = 'Lantai 1';
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillAddress();
+  }
+
+  void _prefillAddress() {
+    final address = ref.read(deliveryAddressProvider);
+    if (address.isEmpty) return;
+
+    final lantais = ['Lantai 1', 'Lantai 2', 'Lantai 3', 'Lantai 4', 'Lantai 5'];
+
+    String? matchedBuilding;
+    for (final b in _gedungList) {
+      if (address.contains(b)) {
+        matchedBuilding = b;
+        break;
+      }
+    }
+
+    String? matchedLantai;
+    for (final l in lantais) {
+      if (address.contains(l)) {
+        matchedLantai = l;
+        break;
+      }
+    }
+
+    String? matchedLobby;
+    final startBracket = address.indexOf('(');
+    final endBracket = address.indexOf(')');
+    if (startBracket != -1 && endBracket != -1 && endBracket > startBracket) {
+      matchedLobby = address.substring(startBracket + 1, endBracket);
+    } else {
+      final parts = address.split(',');
+      if (parts.length > 2) {
+        matchedLobby = parts.sublist(2).join(',').trim();
+      } else if (parts.length == 2 && matchedBuilding != null && matchedLantai == null) {
+        matchedLobby = parts[1].trim();
+      }
+    }
+
+    if (matchedBuilding != null) {
+      _selectedGedung = matchedBuilding;
+    }
+    if (matchedLantai != null) {
+      _selectedLantai = matchedLantai;
+    }
+    if (matchedLobby != null) {
+      _lobbyController.text = matchedLobby;
+    }
+  }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _lobbyController.dispose();
     super.dispose();
   }
 
@@ -236,7 +296,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartNotifierProvider);
-    final address = ref.watch(deliveryAddressProvider);
+    final vendorState = ref.watch(vendorNotifierProvider);
+    final vendor = cartState.vendorId != null
+        ? vendorState.vendors.where((v) => v.id == cartState.vendorId).firstOrNull
+        : null;
     final serviceFee = 1000.0;
     final total = cartState.totalPrice + serviceFee;
 
@@ -253,10 +316,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF4F7FFF)),
               tooltip: 'Chat Penjual',
               onPressed: () {
-                final vendorState = ref.read(vendorNotifierProvider);
-                final vendor = vendorState.vendors
-                    .where((v) => v.id == cartState.vendorId)
-                    .firstOrNull;
                 final vendorName = vendor?.name ?? 'Penjual';
                 Navigator.push(
                   context,
@@ -277,48 +336,187 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // ── Lokasi Pengiriman ──
+            // ── Opsi Pengambilan ──
             _sectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const Row(
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.location_on, color: Color(0xFF4F7FFF), size: 20),
-                          SizedBox(width: 8),
-                          Text('Lokasi Pengambilan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        ],
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddressPage())),
-                        child: const Text('Ubah', style: TextStyle(color: Color(0xFF4F7FFF), fontWeight: FontWeight.bold)),
-                      ),
+                      Icon(Icons.delivery_dining, color: Color(0xFF4F7FFF), size: 20),
+                      SizedBox(width: 8),
+                      Text('Opsi Pengambilan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F5FF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.place, color: Color(0xFF4F7FFF), size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(address, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      _deliveryTypeOption(
+                        DeliveryType.ambilSendiri,
+                        Icons.storefront,
+                        'Ambil Sendiri',
+                        'Ambil langsung ke warung',
+                      ),
+                      const SizedBox(width: 12),
+                      _deliveryTypeOption(
+                        DeliveryType.diAntar,
+                        Icons.local_shipping,
+                        'Di Antar',
+                        'Dikirim ke lokasi Anda',
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
+
+            // ── Lokasi Pengantaran / Pengambilan Toko ──
+            if (_selectedDeliveryType == DeliveryType.ambilSendiri) ...[
+              _sectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.storefront, color: Color(0xFF4F7FFF), size: 20),
+                        SizedBox(width: 8),
+                        Text('Lokasi Pengambilan Toko', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F5FF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.place, color: Color(0xFF4F7FFF), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  vendor?.name ?? 'Nama Toko',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  vendor?.location ?? 'Silakan kunjungi toko kantin penjual setelah pesanan berstatus Siap Diambil.',
+                                  style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              _sectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.location_on, color: Color(0xFF4F7FFF), size: 20),
+                        SizedBox(width: 8),
+                        Text('Lokasi Pengantaran Mahasiswa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Pilih Gedung / Area', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _gedungList.map((g) {
+                        final isGSelected = _selectedGedung == g;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedGedung = g),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isGSelected ? const Color(0xFFEEF3FF) : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isGSelected ? const Color(0xFF4F7FFF) : Colors.grey[300]!,
+                                width: isGSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Text(
+                              g,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isGSelected ? const Color(0xFF4F7FFF) : Colors.black87,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    if (_selectedGedung == 'Gedung A' || _selectedGedung == 'Gedung B') ...[
+                      const SizedBox(height: 16),
+                      const Text('Pilih Lantai', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedLantai,
+                            isExpanded: true,
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF4F7FFF)),
+                            items: ['Lantai 1', 'Lantai 2', 'Lantai 3', 'Lantai 4', 'Lantai 5'].map((String item) {
+                              return DropdownMenuItem<String>(
+                                value: item,
+                                child: Text(item, style: const TextStyle(fontSize: 14)),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() => _selectedLantai = newValue);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    const Text('Posisi Lobi / Detail Lokasi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _lobbyController,
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Lobi Utama, depan resepsionis/lift...',
+                        hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF4F7FFF), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // ── Ringkasan Pesanan ──
             _sectionCard(
@@ -480,6 +678,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 onPressed: cartState.isLoading
                     ? null
                     : () async {
+                        if (_selectedDeliveryType == DeliveryType.diAntar && _lobbyController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Silakan isi posisi lobi Anda terlebih dahulu'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final String deliveryDetails = _selectedDeliveryType == DeliveryType.ambilSendiri
+                            ? '[Opsi: Ambil Sendiri]'
+                            : (_selectedGedung == 'Gedung A' || _selectedGedung == 'Gedung B')
+                                ? '[Opsi: Di Antar - Gedung: $_selectedGedung, Lantai: $_selectedLantai, Lobi: ${_lobbyController.text.trim()}]'
+                                : '[Opsi: Di Antar - Area: $_selectedGedung, Detail: ${_lobbyController.text.trim()}]';
+                        final String finalNote = _noteController.text.trim().isEmpty
+                            ? deliveryDetails
+                            : '$deliveryDetails\nCatatan: ${_noteController.text.trim()}';
+
                         final vendorId = cartState.vendorId;
                         final vendor = vendorId != null
                             ? ref.read(vendorNotifierProvider).vendors
@@ -489,7 +706,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         final vendorName = vendor?.name;
 
                         await ref.read(cartNotifierProvider.notifier).checkout(
-                          note: _noteController.text.isEmpty ? null : _noteController.text,
+                          note: finalNote,
                         );
                         if (!context.mounted) return;
                         final error = ref.read(cartNotifierProvider).error;
@@ -533,6 +750,37 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deliveryTypeOption(DeliveryType type, IconData icon, String title, String subtitle) {
+    final isSelected = _selectedDeliveryType == type;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedDeliveryType = type),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFEEF3FF) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF4F7FFF) : Colors.grey[200]!,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: isSelected ? const Color(0xFF4F7FFF) : Colors.grey, size: 24),
+              const SizedBox(height: 6),
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFF4F7FFF) : Colors.black87)),
+              const SizedBox(height: 2),
+              Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: isSelected ? const Color(0xFF4F7FFF).withValues(alpha: 0.8) : Colors.grey)),
+            ],
+          ),
         ),
       ),
     );

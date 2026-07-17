@@ -381,14 +381,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
-  String _getStatusTitle(String status) {
+  String _getStatusTitle(String status, {bool isDelivery = false}) {
     switch (status.toLowerCase()) {
       case 'pending':
         return 'Menunggu Konfirmasi';
       case 'processing':
         return 'Sedang Dibuat';
       case 'ready':
-        return 'Siap Diambil';
+        return isDelivery ? 'Sedang Diantar' : 'Siap Diambil';
       case 'completed':
         return 'Pesanan Selesai';
       case 'cancelled':
@@ -398,14 +398,16 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     }
   }
 
-  String _getStatusDescription(String status) {
+  String _getStatusDescription(String status, {bool isDelivery = false}) {
     switch (status.toLowerCase()) {
       case 'pending':
         return 'Warung sedang meninjau pesanan Anda.';
       case 'processing':
         return 'Pesanan Anda sedang dimasak dengan penuh cinta.';
       case 'ready':
-        return 'Silakan datangi warung untuk mengambil pesanan Anda.';
+        return isDelivery
+            ? 'Pesanan Anda sudah siap dan sedang dalam perjalanan ke lokasi Anda.'
+            : 'Silakan datangi warung untuk mengambil pesanan Anda.';
       case 'completed':
         return 'Pesanan telah diterima dan selesai. Terima kasih!';
       case 'cancelled':
@@ -458,44 +460,41 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           final currentStep = _getStatusStepIndex(order.orderStatus);
           final isCancelled = order.orderStatus.toLowerCase() == 'cancelled';
 
-          // Parse Return & Complaint Info from order note
-          final String cleanNote;
-          final String? returnInfo;
-          final String? complaintInfo;
+          // Parse Return, Complaint & Delivery Info from order note
+          String cleanNote = order.note ?? '';
+          String? returnInfo;
+          String? complaintInfo;
+          String? deliveryOption;
 
-          final rawNote = order.note ?? '';
-          if (rawNote.contains('[RETURN:')) {
-            final startIndex = rawNote.indexOf('[RETURN:');
-            final endIndex = rawNote.indexOf(']', startIndex);
+          if (cleanNote.contains('[RETURN:')) {
+            final startIndex = cleanNote.indexOf('[RETURN:');
+            final endIndex = cleanNote.indexOf(']', startIndex);
             if (endIndex != -1) {
-              returnInfo = rawNote.substring(startIndex + 8, endIndex);
-              cleanNote =
-                  rawNote.replaceRange(startIndex, endIndex + 1, '').trim();
-            } else {
-              returnInfo = null;
-              cleanNote = rawNote;
+              returnInfo = cleanNote.substring(startIndex + 8, endIndex);
+              cleanNote = cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
             }
-          } else {
-            returnInfo = null;
-            cleanNote = rawNote;
           }
 
-          final String finalCleanNote;
           if (cleanNote.contains('[COMPLAINT:')) {
             final startIndex = cleanNote.indexOf('[COMPLAINT:');
             final endIndex = cleanNote.indexOf(']', startIndex);
             if (endIndex != -1) {
               complaintInfo = cleanNote.substring(startIndex + 11, endIndex);
-              finalCleanNote =
-                  cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
-            } else {
-              complaintInfo = null;
-              finalCleanNote = cleanNote;
+              cleanNote = cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
             }
-          } else {
-            complaintInfo = null;
-            finalCleanNote = cleanNote;
           }
+
+          if (cleanNote.contains('[Opsi:')) {
+            final startIndex = cleanNote.indexOf('[Opsi:');
+            final endIndex = cleanNote.indexOf(']', startIndex);
+            if (endIndex != -1) {
+              deliveryOption = cleanNote.substring(startIndex + 6, endIndex);
+              cleanNote = cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
+            }
+          }
+
+          final isDelivery = deliveryOption?.contains('Di Antar') ?? false;
+          final String finalCleanNote = cleanNote;
 
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -547,7 +546,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              _getStatusTitle(order.orderStatus),
+                              _getStatusTitle(order.orderStatus, isDelivery: isDelivery),
                               style: TextStyle(
                                 color: isCancelled
                                     ? Colors.red
@@ -561,7 +560,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _getStatusDescription(order.orderStatus),
+                        _getStatusDescription(order.orderStatus, isDelivery: isDelivery),
                         style: const TextStyle(
                             color: Colors.black87, fontSize: 14),
                       ),
@@ -586,9 +585,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         ),
                         AnimatedStepRow(
                           index: 2,
-                          label: 'Siap Diambil / Diantar',
-                          description:
-                              'Silakan datangi warung untuk mengambil pesanan Anda.',
+                          label: isDelivery ? 'Sedang Diantar' : 'Siap Diambil',
+                          description: isDelivery
+                              ? 'Pesanan sedang dalam perjalanan ke lokasi Anda.'
+                              : 'Silakan datangi warung untuk mengambil pesanan Anda.',
                           currentStep: currentStep,
                           isLast: false,
                         ),
@@ -886,7 +886,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: () => _showReturnDialog(
-                                        context, order, rawNote),
+                                        context, order, order.note ?? ''),
                                     icon: const Icon(Icons.assignment_return,
                                         size: 16),
                                     label: const Text('Return Pesanan',
@@ -911,7 +911,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: () => _showComplaintDialog(
-                                        context, order, rawNote),
+                                        context, order, order.note ?? ''),
                                     icon: const Icon(Icons.report_problem,
                                         size: 16),
                                     label: const Text('Komplain',
@@ -932,6 +932,63 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                             ],
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // ── Opsi Pengambilan & Lokasi ──
+                if (deliveryOption != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.delivery_dining,
+                                color: Color(0xFF4F7FFF), size: 20),
+                            SizedBox(width: 8),
+                            Text('Metode Pengambilan',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F5FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.place, color: Color(0xFF4F7FFF)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  deliveryOption,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1967D2),
+                                      fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1170,7 +1227,7 @@ class AnimatedStepRow extends StatelessWidget {
                   description,
                   style: TextStyle(
                     color: isActive
-                        ? const Color(0xFF4F7FFF).withOpacity(0.9)
+                        ? const Color(0xFF4F7FFF).withValues(alpha: 0.9)
                         : (isCompleted ? Colors.grey[600] : Colors.grey[400]),
                     fontSize: isActive ? 13 : 12,
                     fontWeight: isActive ? FontWeight.w500 : FontWeight.normal,
@@ -1245,7 +1302,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF4F7FFF).withOpacity(0.2),
+              color: const Color(0xFF4F7FFF).withValues(alpha: 0.2),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1288,7 +1345,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFF4F7FFF)
-                    .withOpacity(0.25 * (1.0 - _controller.value)),
+                    .withValues(alpha: 0.25 * (1.0 - _controller.value)),
               ),
             ),
             Container(
@@ -1299,7 +1356,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4F7FFF).withOpacity(0.4),
+                    color: const Color(0xFF4F7FFF).withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -1356,7 +1413,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
                   width: 2.5,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
@@ -1371,7 +1428,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
                   width: 2.5,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
@@ -1406,7 +1463,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
                   width: 5,
                   height: 1.5,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
@@ -1421,7 +1478,7 @@ class _AnimatedStepIconState extends State<AnimatedStepIcon>
                   width: 4,
                   height: 1.5,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
