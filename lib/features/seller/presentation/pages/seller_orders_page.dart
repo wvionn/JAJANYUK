@@ -146,13 +146,14 @@ class _OrderCard extends ConsumerWidget {
   const _OrderCard({required this.order});
 
   // Parse system tags from note
-  static ({String? returnInfo, String? complaintInfo, String cleanNote}) _parseNoteTags(String? rawNote) {
+  static ({String? returnInfo, String? complaintInfo, String? deliveryOption, String cleanNote}) _parseNoteTags(String? rawNote) {
     if (rawNote == null || rawNote.isEmpty) {
-      return (returnInfo: null, complaintInfo: null, cleanNote: '');
+      return (returnInfo: null, complaintInfo: null, deliveryOption: null, cleanNote: '');
     }
 
     String? returnInfo;
     String? complaintInfo;
+    String? deliveryOption;
     String note = rawNote;
 
     // Extract [RETURN: ...]
@@ -175,7 +176,17 @@ class _OrderCard extends ConsumerWidget {
       }
     }
 
-    return (returnInfo: returnInfo, complaintInfo: complaintInfo, cleanNote: note);
+    // Extract [Opsi: ...]
+    if (note.contains('[Opsi:')) {
+      final start = note.indexOf('[Opsi:');
+      final end = note.indexOf(']', start);
+      if (end != -1) {
+        deliveryOption = note.substring(start + 6, end).trim();
+        note = note.replaceRange(start, end + 1, '').trim();
+      }
+    }
+
+    return (returnInfo: returnInfo, complaintInfo: complaintInfo, deliveryOption: deliveryOption, cleanNote: note);
   }
 
   @override
@@ -184,13 +195,14 @@ class _OrderCard extends ConsumerWidget {
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final timeFormatter = DateFormat('dd MMM, HH:mm');
     final statusColor = _statusColor(order.orderStatus);
-    final statusLabel = _statusLabel(order.orderStatus);
-
-    final showCancel = order.orderStatus == 'pending' || order.orderStatus == 'processing' || order.orderStatus == 'ready';
 
     // Parse return & complaint tags
     final parsed = _parseNoteTags(order.note);
     final hasAlerts = parsed.returnInfo != null || parsed.complaintInfo != null;
+    final isDelivery = parsed.deliveryOption?.contains('Di Antar') ?? false;
+    final statusLabel = _statusLabel(order.orderStatus, isDelivery: isDelivery);
+
+    final showCancel = order.orderStatus == 'pending' || order.orderStatus == 'processing' || order.orderStatus == 'ready';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -382,6 +394,36 @@ class _OrderCard extends ConsumerWidget {
                         ],
                       ),
                     )),
+                // Show delivery option details
+                if (parsed.deliveryOption != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F5FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFD2E3FC)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.delivery_dining,
+                            size: 16, color: Color(0xFF4F7FFF)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Metode Pengantaran: ${parsed.deliveryOption}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1967D2),
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 // Show clean note (without system tags)
                 if (parsed.cleanNote.isNotEmpty)
                   Container(
@@ -497,7 +539,7 @@ class _OrderCard extends ConsumerWidget {
                       elevation: 0,
                     ),
                     child: Text(
-                      _nextStatusLabel(order.orderStatus),
+                      _nextStatusLabel(order.orderStatus, isDelivery: isDelivery),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -522,10 +564,12 @@ class _OrderCard extends ConsumerWidget {
     return flow[current];
   }
 
-  String _nextStatusLabel(String current) {
+  String _nextStatusLabel(String current, {bool isDelivery = false}) {
+    if (current == 'processing') {
+      return isDelivery ? 'Kirim Pesanan' : 'Siap Ambil';
+    }
     const labels = {
       'pending': 'Terima',
-      'processing': 'Siap Ambil',
       'ready': 'Selesai',
     };
     return labels[current] ?? '';
@@ -548,11 +592,13 @@ class _OrderCard extends ConsumerWidget {
     }
   }
 
-  String _statusLabel(String status) {
+  String _statusLabel(String status, {bool isDelivery = false}) {
+    if (status == 'ready') {
+      return isDelivery ? 'Sedang Diantar' : 'Siap Diambil';
+    }
     const labels = {
       'pending': 'Menunggu Konfirmasi',
       'processing': 'Diproses',
-      'ready': 'Siap Diambil',
       'completed': 'Selesai',
       'cancelled': 'Dibatalkan',
     };
@@ -563,14 +609,15 @@ class _OrderCard extends ConsumerWidget {
     final next = _nextStatus(order.orderStatus);
     if (next == null) return;
     
-    final labelAction = _nextStatusLabel(order.orderStatus).toLowerCase();
+    final isDelivery = order.note?.contains('[Opsi: Di Antar') ?? false;
+    final labelAction = _nextStatusLabel(order.orderStatus, isDelivery: isDelivery).toLowerCase();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Konfirmasi ${labelAction.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Yakin ingin mengubah status pesanan ini menjadi "${_statusLabel(next)}"?'),
+        content: Text('Yakin ingin mengubah status pesanan ini menjadi "${_statusLabel(next, isDelivery: isDelivery)}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           ElevatedButton(
