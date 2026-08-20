@@ -40,13 +40,13 @@
 
 ## 👥 Team Contributions & Ownership Matrix
 
-This project was built collaboratively with dedicated domain ownership across UI/UX design, mobile client frontend, and backend/admin/merchant systems:
+This project was built collaboratively with dedicated domain ownership across UI/UX design, customer mobile frontend, and backend/auth/admin/merchant systems:
 
 | Team Member | Core Domain | Responsibilities & Deliverables |
 | :--- | :--- | :--- |
 | **Aisyah** | **UI/UX Designer** | • **Design System & Visual Language**: Typography hierarchy, color palette, responsive grid, and reusable UI tokens.<br>• **Figma Prototyping**: High-fidelity wireframes and interactive flows for Buyer, Seller, and Admin interfaces.<br>• **User Research & UX Testing**: Student journey mapping, merchant empathy interviews, and canteen usability testing. |
-| **Felly** | **Customer App Frontend Developer** | • **Student Experience**: Onboarding flow, dynamic campus selector, categorized food & beverage feed, and search.<br>• **Cart & Checkout Engine**: Riverpod-powered reactive basket, item note additions, and cash/COD order placement.<br>• **Order & Account Management**: Live order status timeline, order cancellation flow, notification center, and user profile. |
-| **Keisha** ([@wvionn](https://github.com/wvionn)) | **Lead Backend, Admin & Seller Hub Engineer** | • **Database & Cloud Architecture**: 3NF normalized schema, PostgreSQL triggers, composite indexing, and Supabase integration.<br>• **Data Security & Multi-Tenancy**: PostgreSQL Row-Level Security (RLS) isolating merchant, buyer, and administrative data.<br>• **Admin Suite (5 Modules)**: Operational Dashboard, Merchant KYC & Verification, Campus Manager, Financial Audit, and User Governance.<br>• **Seller Hub (7 Modules)**: Real-time WebSocket Order KDS, Menu & Stock Controller, Financial Analytics, Chat, Refunds, and Profile.<br>• **Auth & Routing Gateway**: GoRouter RBAC engine with automatic role-based redirection. |
+| **Felly** | **Customer App Frontend Developer** | • **Food & Vendor Discovery**: Categorized meal navigation, merchant stall browsing, and live keyword search.<br>• **Cart & Checkout Engine**: Riverpod-powered reactive basket, item note additions, and cash/COD order placement.<br>• **Order & Account Management**: Live order status timeline, order cancellation flow, notification center, and customer profile page. |
+| **Keisha** ([@wvionn](https://github.com/wvionn)) | **Lead Backend, Admin, Seller Hub & Auth/Onboarding Engineer** | • **Auth & Onboarding Gateway**: User onboarding walkthrough, campus selector, Login/Register/Forgot Password, and GoRouter RBAC auto-redirection.<br>• **Database & Cloud Architecture**: 3NF normalized schema, PostgreSQL triggers, composite indexing, and Supabase integration.<br>• **Data Security & Multi-Tenancy**: PostgreSQL Row-Level Security (RLS) isolating merchant, buyer, and administrative data.<br>• **Admin Suite (5 Modules)**: Operational Dashboard, Merchant KYC & Verification, Campus Manager, Financial Audit, and User Governance.<br>• **Seller Hub (7 Modules)**: Real-time WebSocket Order KDS, Menu & Stock Controller, Financial Analytics, Chat, Refunds, and Profile. |
 
 ---
 
@@ -61,8 +61,8 @@ This project was built collaboratively with dedicated domain ownership across UI
 ---
 
 ### 🎓 2. Customer / Buyer Mobile Application — *Led by Felly*
-* **Multi-Campus Canteen Discovery**: Allows students to select their respective campus location and explore active food stalls and operating hours.
 * **Menu Browsing & Search**: Categorized food navigation (`Makanan`, `Minuman`, `Snack`, `Lainnya`), live text search, item descriptions, and price calculations.
+* **Canteen Stall Discovery**: Browse available canteen stalls within the selected campus and view opening hours.
 * **State-Managed Cart & Checkout**:
   * Reactive cart state powered by Riverpod.
   * Custom notes per item (e.g., "tidak pedas", "tanpa es").
@@ -71,10 +71,19 @@ This project was built collaboratively with dedicated domain ownership across UI
   * Visual status progression (`Menunggu Konfirmasi` $\rightarrow$ `Sedang Dimasak` $\rightarrow$ `Siap Diambil` $\rightarrow$ `Selesai`).
   * Order cancellation and dispute handling.
   * History log of completed and past transactions.
+* **Customer Profile Page**: Personal profile and contact information management.
 
 ---
 
-### 💻 3. Backend, Admin Suite & Seller Hub — *Led by Keisha ([@wvionn](https://github.com/wvionn))*
+### 💻 3. Backend, Admin Suite, Seller Hub & Auth/Onboarding — *Led by Keisha ([@wvionn](https://github.com/wvionn))*
+
+#### 🔐 Auth, Onboarding & Campus Gateway
+* **Interactive Onboarding Walkthrough**: Multi-step animated onboarding introducing core platform features with smooth carousel navigation (`onboarding_page.dart`).
+* **Campus Selection Gateway**: Initial campus picker allowing users to choose their active university branch (`campus_selection_page.dart`).
+* **Authentication Suite**:
+  * **Login & Registration**: Secure authentication forms with input validation, role checks, and password visibility toggles (`login_page.dart`, `register_page.dart`).
+  * **Forgot Password**: Password reset recovery flow (`forgot_password_page.dart`).
+* **GoRouter RBAC Interceptor**: Single-entry authentication routing users dynamically based on their role (`customer` $\rightarrow$ `/home`, `seller` $\rightarrow$ `/seller-dashboard`, `admin` $\rightarrow$ `/admin-dashboard`).
 
 #### 🛡️ Campus Admin Suite (5 Modules)
 * **Executive Dashboard**: Aggregated high-level metrics across all campus branches (total gross volume, daily orders, active merchants, and registered students).
@@ -91,8 +100,7 @@ This project was built collaboratively with dedicated domain ownership across UI
 * **Dispute & Refund Processing**: Dedicated return-management workflow to review and process student order cancellations.
 * **Vendor Profile & Schedule**: Configuration of operational hours (`open_time` - `close_time`), stall status (`is_open`), and estimated prep time.
 
-#### 🔐 Auth Gateway & Security Architecture
-* **GoRouter RBAC**: Single-entry authentication intercepting and routing users based on their active role.
+#### 🗄️ Database Architecture & Security
 * **3NF Database Normalization**: Normalized data model eliminating anomalies across campuses, vendors, menus, orders, order items, and transactions.
 * **PostgreSQL Row-Level Security (RLS)**: Strict database-level multi-tenant policies ensuring complete data privacy across vendors and buyers.
 
@@ -110,8 +118,13 @@ graph TD
     end
 
     subgraph Client ["📱 Flutter Application"]
+        subgraph Gateway ["🔐 Auth & Onboarding Gateway (Keisha)"]
+            UI_Onboard["Onboarding & Campus Selector"]
+            UI_Auth["Login, Register & Forgot Password"]
+        end
+
         subgraph CustomerApp ["🎓 Customer / Buyer App (Felly)"]
-            UI_Home["Campus & Menu Browsing"]
+            UI_Home["Menu & Stall Browsing"]
             UI_Cart["Cart & Checkout Flow"]
             UI_Orders["Order History & Status Tracking"]
         end
@@ -121,7 +134,7 @@ graph TD
             UI_Admin["Admin Suite (5 Modules)"]
         end
 
-        Router["GoRouter RBAC Gateway"]
+        Router["GoRouter RBAC Engine (Keisha)"]
         State["State Management (Riverpod 2.4)"]
     end
 
@@ -133,6 +146,7 @@ graph TD
     end
 
     Figma -.->|Guides UI Implementation| Client
+    Gateway --> Router
     CustomerApp --> Router
     ManagementApp --> Router
     Router --> State
@@ -249,7 +263,7 @@ This project was created as a Collaborative Final Project / Capstone (**Tugas Ak
 
 * 🎨 **Aisyah** — *UI/UX Designer & Product Researcher*
 * 🎓 **Felly** — *Customer / Buyer App Frontend Developer*
-* 💻 **Keisha** ([@wvionn](https://github.com/wvionn)) — *Lead Backend, Admin & Seller Hub Engineer*
+* 💻 **Keisha** ([@wvionn](https://github.com/wvionn)) — *Lead Backend, Admin Suite, Seller Hub & Auth/Onboarding Engineer*
 
 ---
 
