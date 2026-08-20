@@ -37,6 +37,8 @@ abstract class SellerRemoteDataSource {
   Future<List<OrderModel>> getOrders(String vendorId);
   Future<void> updateOrderStatus(
       {required String orderId, required String status});
+  Future<void> updateOrderNote(
+      {required String orderId, required String note});
   Stream<List<OrderModel>> watchOrders(String vendorId);
 
   // ── Chat ──
@@ -225,6 +227,21 @@ class SellerRemoteDataSourceImpl implements SellerRemoteDataSource {
           print('Error logging transaction: $txErr');
         }
       }
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> updateOrderNote({
+    required String orderId,
+    required String note,
+  }) async {
+    try {
+      await supabaseClient
+          .from('orders')
+          .update({'note': note})
+          .eq('id', orderId);
     } catch (e) {
       throw ServerException(e.toString());
     }

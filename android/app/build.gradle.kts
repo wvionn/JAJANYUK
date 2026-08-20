@@ -10,11 +10,7 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    packaging {
-        jniLibs {
-            keepDebugSymbols.add("**/*.so")
-        }
-    }
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

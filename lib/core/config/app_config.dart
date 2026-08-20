@@ -10,7 +10,7 @@ class AppConfig {
       dotenv.env['SUPABASE_ANON_KEY'] ?? 'YOUR_SUPABASE_ANON_KEY';
 
   // App Constants
-  static const String appName = 'Esa Eats';
+  static const String appName = 'Jajanyuk';
   static const String appVersion = '1.0.0';
 
   // Campus Locations

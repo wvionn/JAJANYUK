@@ -94,7 +94,7 @@ class _SignUpPageState extends State<SignUpPage> {
           children: [
             const SizedBox(height: 40),
             Text(
-              'ESA EATS',
+              'JAJANYUK',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

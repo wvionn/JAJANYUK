@@ -39,6 +39,10 @@ abstract class SellerRepository {
     required String orderId,
     required String status,
   });
+  Future<Either<Failure, void>> updateOrderNote({
+    required String orderId,
+    required String note,
+  });
 
   // ── Chat ──
   Future<Either<Failure, List<ChatMessageEntity>>> getChatMessages(String orderId);

@@ -23,6 +23,7 @@ import '../../features/seller/presentation/pages/seller_orders_page.dart';
 import '../../features/seller/presentation/pages/seller_chat_page.dart';
 import '../../features/seller/presentation/pages/seller_profile_page.dart';
 import '../../features/seller/presentation/pages/seller_reports_page.dart';
+import '../../features/seller/presentation/pages/seller_returns_page.dart';
 import '../widgets/main_shell.dart';
 import 'route_names.dart';
 
@@ -151,6 +152,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.sellerReports,
         name: RouteNames.sellerReports,
         builder: (context, state) => const SellerReportsPage(),
+      ),
+      GoRoute(
+        path: RouteNames.sellerReturns,
+        name: RouteNames.sellerReturns,
+        builder: (context, state) => const SellerReturnsPage(),
       ),
     ],
     errorBuilder: (context, state) =>

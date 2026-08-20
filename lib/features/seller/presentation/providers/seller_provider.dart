@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/seller_remote_datasource.dart';
 import '../../data/repositories/seller_repository_impl.dart';
 import '../../domain/entities/menu_item_entity.dart';
@@ -27,7 +28,8 @@ final sellerRepositoryProvider = Provider<SellerRepository>((ref) {
 // ── Current Seller ID & Profile ──
 
 final currentSellerIdProvider = Provider<String?>((ref) {
-  return Supabase.instance.client.auth.currentUser?.id;
+  final authState = ref.watch(authStateProvider);
+  return authState.valueOrNull?.id;
 });
 
 final sellerProfileFutureProvider = FutureProvider<SellerProfileEntity?>((ref) async {
@@ -307,6 +309,14 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     final result = await _repository.updateOrderStatus(
       orderId: orderId,
       status: newStatus,
+    );
+    return result.isRight();
+  }
+
+  Future<bool> updateOrderNote(String orderId, String note) async {
+    final result = await _repository.updateOrderNote(
+      orderId: orderId,
+      note: note,
     );
     return result.isRight();
   }

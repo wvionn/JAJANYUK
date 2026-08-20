@@ -106,6 +106,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   void _showReturnDialog(
       BuildContext context, OrderEntity order, String rawNote) {
     String selectedReason = 'Makanan basi/rusak';
+    String? selectedAttachment;
     final TextEditingController detailsController = TextEditingController();
     final List<String> reasons = [
       'Makanan basi/rusak',
@@ -170,6 +171,66 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   contentPadding: const EdgeInsets.all(10),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text('Foto Bukti (Wajib):',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final presets = [
+                        'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=500',
+                        'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=500',
+                        'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500',
+                      ];
+                      setDialogState(() {
+                        selectedAttachment = (presets..shuffle()).first;
+                      });
+                    },
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: const Text('Pilih Foto', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange[50],
+                      foregroundColor: Colors.orange[900],
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  if (selectedAttachment != null) ...[
+                    const SizedBox(width: 12),
+                    Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            selectedAttachment!,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setDialogState(() {
+                              selectedAttachment = null;
+                            });
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -190,6 +251,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 return;
               }
 
+              if (selectedAttachment == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Silakan pilih foto bukti terlebih dahulu.')),
+                );
+                return;
+              }
+
               Navigator.pop(ctx);
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -199,9 +268,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               );
 
               try {
+                final attachTag = selectedAttachment != null ? '\n[ATTACHMENT: $selectedAttachment]' : '';
                 final newNote = rawNote.isEmpty
-                    ? '[RETURN: $selectedReason - $details]'
-                    : '$rawNote\n[RETURN: $selectedReason - $details]';
+                    ? '[RETURN: $selectedReason - $details]$attachTag'
+                    : '$rawNote\n[RETURN: $selectedReason - $details]$attachTag';
 
                 await ref
                     .read(orderRepositoryProvider)
@@ -244,6 +314,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   void _showComplaintDialog(
       BuildContext context, OrderEntity order, String rawNote) {
     String selectedType = 'Kurang item/pesanan tidak lengkap';
+    String? selectedAttachment;
     final TextEditingController detailsController = TextEditingController();
     final List<String> types = [
       'Kurang item/pesanan tidak lengkap',
@@ -309,6 +380,66 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   contentPadding: const EdgeInsets.all(10),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text('Foto Bukti (Wajib):',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final presets = [
+                        'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=500',
+                        'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=500',
+                        'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500',
+                      ];
+                      setDialogState(() {
+                        selectedAttachment = (presets..shuffle()).first;
+                      });
+                    },
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: const Text('Pilih Foto', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[50],
+                      foregroundColor: Colors.red[900],
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  if (selectedAttachment != null) ...[
+                    const SizedBox(width: 12),
+                    Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            selectedAttachment!,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setDialogState(() {
+                              selectedAttachment = null;
+                            });
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -329,6 +460,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 return;
               }
 
+              if (selectedAttachment == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Silakan pilih foto bukti terlebih dahulu.')),
+                );
+                return;
+              }
+
               Navigator.pop(ctx);
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -338,9 +477,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               );
 
               try {
+                final attachTag = selectedAttachment != null ? '\n[ATTACHMENT: $selectedAttachment]' : '';
                 final newNote = rawNote.isEmpty
-                    ? '[COMPLAINT: $selectedType - $details]'
-                    : '$rawNote\n[COMPLAINT: $selectedType - $details]';
+                    ? '[COMPLAINT: $selectedType - $details]$attachTag'
+                    : '$rawNote\n[COMPLAINT: $selectedType - $details]$attachTag';
 
                 await ref
                     .read(orderRepositoryProvider)
@@ -464,7 +604,27 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           String cleanNote = order.note ?? '';
           String? returnInfo;
           String? complaintInfo;
+          String? responseInfo;
+          String? attachmentUrl;
           String? deliveryOption;
+
+          if (cleanNote.contains('[ATTACHMENT:')) {
+            final startIndex = cleanNote.indexOf('[ATTACHMENT:');
+            final endIndex = cleanNote.indexOf(']', startIndex);
+            if (endIndex != -1) {
+              attachmentUrl = cleanNote.substring(startIndex + 12, endIndex);
+              cleanNote = cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
+            }
+          }
+
+          if (cleanNote.contains('[RESPONSE:')) {
+            final startIndex = cleanNote.indexOf('[RESPONSE:');
+            final endIndex = cleanNote.indexOf(']', startIndex);
+            if (endIndex != -1) {
+              responseInfo = cleanNote.substring(startIndex + 10, endIndex);
+              cleanNote = cleanNote.replaceRange(startIndex, endIndex + 1, '').trim();
+            }
+          }
 
           if (cleanNote.contains('[RETURN:')) {
             final startIndex = cleanNote.indexOf('[RETURN:');
@@ -826,6 +986,28 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                             color: Colors.orange[900],
                                             fontSize: 12),
                                       ),
+                                      if (attachmentUrl != null) ...[
+                                        const SizedBox(height: 8),
+                                        GestureDetector(
+                                          onTap: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) => Dialog(
+                                                child: Image.network(attachmentUrl!),
+                                              ),
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              attachmentUrl,
+                                              height: 60,
+                                              width: 90,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -866,6 +1048,70 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                         complaintInfo,
                                         style: TextStyle(
                                             color: Colors.red[900],
+                                            fontSize: 12),
+                                      ),
+                                      if (attachmentUrl != null) ...[
+                                        const SizedBox(height: 8),
+                                        GestureDetector(
+                                          onTap: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) => Dialog(
+                                                child: Image.network(attachmentUrl!),
+                                              ),
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              attachmentUrl,
+                                              height: 60,
+                                              width: 90,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+
+                        if (responseInfo != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.check_circle,
+                                    color: Colors.green[800], size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tanggapan Penjual',
+                                        style: TextStyle(
+                                            color: Colors.green[800],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        responseInfo,
+                                        style: TextStyle(
+                                            color: Colors.green[900],
                                             fontSize: 12),
                                       ),
                                     ],

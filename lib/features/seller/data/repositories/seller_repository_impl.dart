@@ -212,5 +212,20 @@ class SellerRepositoryImpl implements SellerRepository {
       return Left(ServerFailure(e.message));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> updateOrderNote({
+    required String orderId,
+    required String note,
+  }) async {
+    try {
+      return Right(await remoteDataSource.updateOrderNote(
+        orderId: orderId,
+        note: note,
+      ));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
 }
 

@@ -487,6 +487,11 @@ class SellerDashboardPage extends ConsumerWidget {
   Widget _buildMenuGrid(BuildContext context, OrdersState ordersState) {
     final pendingCount = ordersState.countByStatus('pending');
 
+    final alertCount = ordersState.orders.where((o) {
+      final note = o.note ?? '';
+      return note.contains('[RETURN:') || note.contains('[COMPLAINT:');
+    }).length;
+
     final menus = [
       const _SellerMenu(
         title: 'Kelola Menu',
@@ -504,6 +509,16 @@ class SellerDashboardPage extends ConsumerWidget {
         color: AppColors.secondary,
         route: RouteNames.sellerOrders,
         badge: pendingCount,
+      ),
+      _SellerMenu(
+        title: 'Return & Komplain',
+        subtitle: alertCount > 0
+            ? '$alertCount pengajuan'
+            : 'Kelola keluhan pembeli',
+        icon: Icons.feedback_outlined,
+        color: Colors.redAccent,
+        route: RouteNames.sellerReturns,
+        badge: alertCount,
       ),
       const _SellerMenu(
         title: 'Profil Toko',

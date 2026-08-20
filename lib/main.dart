@@ -24,33 +24,6 @@ void main() async {
       anonKey: AppConfig.supabaseAnonKey,
     );
 
-    // Sync database: activate all campuses and distribute vendors
-    try {
-      final client = Supabase.instance.client;
-      // 1. Activate all campuses
-      await client
-          .from('campuses')
-          .update({'is_active': true})
-          .neq('id', '00000000-0000-0000-0000-000000000000');
-
-      // 2. Fetch campuses and vendors to distribute
-      final campuses = await client.from('campuses').select().order('name');
-      final vendors = await client.from('vendors').select().order('name');
-
-      if (campuses.isNotEmpty && vendors.isNotEmpty) {
-        for (int i = 0; i < vendors.length; i++) {
-          final campus = campuses[i % campuses.length];
-          await client
-              .from('vendors')
-              .update({'campus_id': campus['id']})
-              .eq('id', vendors[i]['id']);
-        }
-      }
-      debugPrint('DB SYNC SUCCESS: Campuses activated, vendors distributed.');
-    } catch (e) {
-      debugPrint('DB SYNC ERROR: $e');
-    }
-
     runApp(
       const ProviderScope(
         child: EsaEatsApp(),
@@ -113,7 +86,7 @@ class EsaEatsApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'Esa Eats',
+      title: 'Jajanyuk',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,

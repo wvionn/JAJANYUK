@@ -107,7 +107,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
+      builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -124,21 +124,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             const Text('Pilih Metode Pembayaran',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            _paymentOption(PaymentMethod.qris, Icons.qr_code, 'QRIS', 'Scan QR code untuk bayar'),
-            _paymentOption(PaymentMethod.transfer, Icons.account_balance, 'Transfer Bank', 'BCA / BRI / Mandiri / BNI'),
-            _paymentOption(PaymentMethod.cod, Icons.money, 'Bayar di Tempat', 'Bayar langsung ke penjual'),
+            _paymentOption(sheetContext, PaymentMethod.qris, Icons.qr_code, 'QRIS', 'Scan QR code untuk bayar'),
+            // _paymentOption(sheetContext, PaymentMethod.transfer, Icons.account_balance, 'Transfer Bank', 'BCA / BRI / Mandiri / BNI'),
+            _paymentOption(sheetContext, PaymentMethod.cod, Icons.money, 'Bayar di Tempat', 'Bayar langsung ke penjual'),
           ],
         ),
       ),
     );
   }
 
-  Widget _paymentOption(PaymentMethod method, IconData icon, String title, String subtitle) {
+  Widget _paymentOption(BuildContext sheetContext, PaymentMethod method, IconData icon, String title, String subtitle) {
     final isSelected = _selectedPayment == method;
     return GestureDetector(
       onTap: () {
         setState(() => _selectedPayment = method);
-        Navigator.pop(context);
+        Navigator.pop(sheetContext);
         if (method == PaymentMethod.qris) _showQrisDialog();
         if (method == PaymentMethod.transfer) _showTransferDialog();
       },
@@ -184,7 +184,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void _showQrisDialog() {
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -217,7 +217,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: TextStyle(color: Colors.grey, fontSize: 13)),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F7FFF),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -234,7 +234,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void _showTransferDialog() {
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -257,7 +257,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               const SizedBox(height: 16),
               Center(
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F7FFF),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
